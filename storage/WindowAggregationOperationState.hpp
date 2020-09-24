@@ -114,7 +114,7 @@ class WindowAggregationOperationState {
    *                           aggregate.
    * @param block_ids The id of the blocks to be computed.
    **/
-  void windowAggregateBlocks(InsertDestination *output_destination,
+  std::size_t windowAggregateBlocks(InsertDestination *output_destination,
                              const std::vector<block_id> &block_ids);
 
  private:

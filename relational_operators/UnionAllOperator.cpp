@@ -175,12 +175,23 @@ serialization::WorkOrder* UnionAllOperator::createWorkOrderProto(
   return proto;
 }
 
-void UnionAllWorkOrder::execute() {
+std::size_t UnionAllWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_));
   block->selectSimple(select_attribute_id_,
                       nullptr,
                       output_destination_);
+  return block->getMemorySize();
+}
+
+void UnionAllWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::UNION_ALL);
+
+  proto->SetExtension(serialization::UnionAllWorkOrderCompletionMessage::relation_id, input_relation_.getID());
+  proto->SetExtension(serialization::UnionAllWorkOrderCompletionMessage::block_id, input_block_id_);
+  for (const attribute_id attr : select_attribute_id_) {
+    proto->AddExtension(serialization::UnionAllWorkOrderCompletionMessage::select_attribute_id, attr);
+  }
 }
 
 }  // namespace quickstep

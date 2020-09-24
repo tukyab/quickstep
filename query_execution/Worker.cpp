@@ -134,9 +134,8 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
 
   // Start measuring the execution time.
   start = std::chrono::steady_clock::now();
-  work_order->execute();
+  const size_t memory_bytes = work_order->execute();
   end = std::chrono::steady_clock::now();
-  work_order.reset();
 
   // Convert the measured timestamps to epoch times in microseconds.
   const uint64_t execution_start_time =
@@ -147,18 +146,22 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
           end.time_since_epoch()).count();
 
   // Construct the proto message.
-  proto->set_work_order_type(is_rebuild_work_order ? WorkOrderCompletionMessage::REBUILD
+  proto->set_work_order_rebuild(is_rebuild_work_order ? WorkOrderCompletionMessage::REBUILD
                                                    : WorkOrderCompletionMessage::NORMAL);
   proto->set_operator_index(worker_message.getRelationalOpIndex());
   proto->set_query_id(query_id_for_workorder);
-  proto->set_partition_id(part_id);
+  proto->set_part_id(part_id);
   proto->set_worker_thread_index(worker_thread_index_);
   proto->set_execution_start_time(execution_start_time);
   proto->set_execution_end_time(execution_end_time);
+  proto->set_memory_bytes(memory_bytes);
+  work_order->setProtoValues(proto);
 
 #ifdef QUICKSTEP_DISTRIBUTED
   proto->set_shiftboss_index(shiftboss_index_);
 #endif  // QUICKSTEP_DISTRIBUTED
+
+  work_order.reset();
 }
 
 }  // namespace quickstep

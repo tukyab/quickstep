@@ -88,8 +88,16 @@ bool InitializeAggregationOperator::getAllWorkOrderProtos(WorkOrderProtosContain
   return true;
 }
 
-void InitializeAggregationWorkOrder::execute() {
+std::size_t InitializeAggregationWorkOrder::execute() {
   state_->initialize(state_partition_id_);
+  return state_->getMemoryConsumptionBytes();
+}
+
+void InitializeAggregationWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::INITIALIZE_AGGREGATION);
+  proto->SetExtension(serialization::InitializeAggregationWorkOrderCompletionMessage::partition_id, partition_id_);
+  proto->SetExtension(serialization::InitializeAggregationWorkOrderCompletionMessage::state_partition_id, state_partition_id_);
+
 }
 
 }  // namespace quickstep

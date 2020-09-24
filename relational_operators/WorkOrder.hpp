@@ -248,7 +248,9 @@ class WorkOrder {
   /**
    * @brief Run this WorkOrder in the calling thread.
    **/
-  virtual void execute() = 0;
+  virtual std::size_t execute() = 0;
+
+  virtual void setProtoValues(serialization::WorkOrderCompletionMessage* proto) = 0;
 
   /**
    * @brief Get the preferred NUMA node(s) where this WorkOrder should be

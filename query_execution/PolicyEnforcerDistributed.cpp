@@ -75,6 +75,7 @@ using tmb::TaggedMessage;
 namespace quickstep {
 
 DECLARE_bool(visualize_execution_dag);
+DECLARE_bool(tenzin_profiling);
 
 namespace S = serialization;
 
@@ -316,6 +317,37 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
 
     CHECK_EQ(dot_file_length,
              std::fwrite(dot_file_content.c_str(), sizeof(char), dot_file_length, fp));
+
+    std::fclose(fp);
+  }
+
+  if (FLAGS_tenzin_profiling && hasProfilingResults(query_id)) {
+    std::ostringstream txt_filename;
+    txt_filename << query_id << ".txt";
+
+    FILE *fp = std::fopen(txt_filename.str().c_str(), "w");
+    CHECK_NOTNULL(fp);
+    std::ostringstream txt;
+    std::vector<WorkOrderTimeEntry> profilingResults = getProfilingResults(query_id);
+    for (int i = 0; i < profilingResults.size(); i++) {
+      txt << "Work Order: part_id="
+          << profilingResults[i].part_id
+          << " operator_id="
+          << profilingResults[i].operator_id
+          << " rebuild="
+          << profilingResults[i].rebuild
+          << " time="
+          << profilingResults[i].end_time - profilingResults[i].start_time
+          << " memory_bytes="
+          << profilingResults[i].memory_bytes
+          << "\n";
+    }
+
+    const std::string txt_file_content = txt.str();
+    const std::size_t txt_file_length = txt_file_content.length();
+
+    CHECK_EQ(txt_file_length,
+             std::fwrite(txt_file_content.c_str(), sizeof(char), txt_file_length, fp));
 
     std::fclose(fp);
   }

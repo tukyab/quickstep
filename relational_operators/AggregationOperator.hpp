@@ -171,7 +171,9 @@ class AggregationWorkOrder : public WorkOrder {
 
   ~AggregationWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const block_id input_block_id_;

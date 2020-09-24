@@ -215,7 +215,9 @@ class UnionAllWorkOrder : public WorkOrder {
 
   ~UnionAllWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const CatalogRelationSchema &input_relation_;

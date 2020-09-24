@@ -388,7 +388,7 @@ class RunMerger {
    * @brief Merges the runs. This will use a specialized merge implementation
    * depending on the sort configuration.
    **/
-  void doMerge();
+  std::size_t doMerge();
 
   /**
    * @brief Get a mutable a pointer to the merged output run.

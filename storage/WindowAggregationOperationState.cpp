@@ -181,21 +181,23 @@ bool WindowAggregationOperationState::ProtoIsValid(const serialization::WindowAg
   return true;
 }
 
-void WindowAggregationOperationState::windowAggregateBlocks(
+std::size_t WindowAggregationOperationState::windowAggregateBlocks(
     InsertDestination *output_destination,
     const std::vector<block_id> &block_ids) {
   // TODO(Shixuan): This is a quick fix for currently unsupported functions in
   // order to pass the query_optimizer test.
   if (window_aggregation_handle_.get() == nullptr) {
     std::cout << "The function will be supported in the near future :)\n";
-    return;
+    return 0;
   }
 
   // Get the total number of tuples.
   int num_tuples = 0;
+  std::size_t size = 0;
   for (const block_id block_idx : block_ids) {
-    num_tuples +=
-        storage_manager_->getBlock(block_idx, input_relation_)->getNumTuples();
+    BlockReference block(storage_manager_->getBlock(block_idx, input_relation_));
+    num_tuples += block->getNumTuples();
+    size += block->getMemorySize();
   }
 
   // Construct column vectors for attributes.
@@ -299,7 +301,9 @@ void WindowAggregationOperationState::windowAggregateBlocks(
                                             argument_vecs);
 
   all_blocks_accessor->addColumn(window_aggregates);
-  output_destination->bulkInsertTuples(all_blocks_accessor);
+  size += output_destination->bulkInsertTuples(all_blocks_accessor);
+
+  return size;
 }
 
 }  // namespace quickstep

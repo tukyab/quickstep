@@ -269,7 +269,9 @@ class SortMergeRunWorkOrder : public WorkOrder {
 
   ~SortMergeRunWorkOrder() {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const SortConfiguration &sort_config_;

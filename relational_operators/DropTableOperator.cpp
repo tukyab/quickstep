@@ -94,7 +94,7 @@ void DropTableOperator::updateCatalogOnCompletion() {
 }
 
 
-void DropTableWorkOrder::execute() {
+std::size_t DropTableWorkOrder::execute() {
   for (const block_id block : blocks_) {
     storage_manager_->deleteBlockOrBlobFile(block);
   }
@@ -102,6 +102,16 @@ void DropTableWorkOrder::execute() {
   // Drop the relation in the cache in the distributed version, if any.
   if (catalog_database_cache_ != nullptr && rel_id_ != kInvalidCatalogId) {
     catalog_database_cache_->dropRelationById(rel_id_);
+  }
+
+  return 0;
+}
+
+void DropTableWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::DROP_TABLE);
+  // proto->AddExtension(serialization::DropTableWorkOrderCompletionMessage::relation_id, rel_id_);
+  for (const block_id block_id : blocks_) {
+    proto->AddExtension(serialization::DropTableWorkOrderCompletionMessage::block_ids, block_id);
   }
 }
 

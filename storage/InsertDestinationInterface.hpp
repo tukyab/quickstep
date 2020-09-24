@@ -79,7 +79,7 @@ class InsertDestinationInterface {
    *            initially empty, otherwise failure to insert simply causes
    *            another block to be used.
    **/
-  virtual void insertTuple(const Tuple &tuple) = 0;
+  virtual std::size_t insertTuple(const Tuple &tuple) = 0;
 
   /**
    * @brief Insert a single tuple into a block managed by this
@@ -103,7 +103,7 @@ class InsertDestinationInterface {
    * @param always_mark_full If \c true, always mark the blocks full after
    *        insertion from ValueAccessor even when partially full.
    **/
-  virtual void bulkInsertTuples(ValueAccessor *accessor,
+  virtual std::size_t bulkInsertTuples(ValueAccessor *accessor,
                                 const bool always_mark_full = false) = 0;
 
   /**
@@ -135,7 +135,7 @@ class InsertDestinationInterface {
    *        Set the i-th element to kInvalidCatalogId if it doesn't come from
    *        the corresponding value accessor.
    **/
-  virtual void bulkInsertTuplesFromValueAccessors(
+  virtual std::size_t bulkInsertTuplesFromValueAccessors(
       const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map) = 0;
 
   /**

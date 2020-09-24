@@ -111,7 +111,9 @@ class DestroyHashWorkOrder : public WorkOrder {
 
   ~DestroyHashWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const QueryContext::join_hash_table_id hash_table_index_;

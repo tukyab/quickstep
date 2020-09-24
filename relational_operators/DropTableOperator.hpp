@@ -133,7 +133,9 @@ class DropTableWorkOrder : public WorkOrder {
 
   ~DropTableWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const std::vector<block_id> blocks_;

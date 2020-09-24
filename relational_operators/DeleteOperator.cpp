@@ -139,7 +139,7 @@ serialization::WorkOrder* DeleteOperator::createWorkOrderProto(const partition_i
 }
 
 
-void DeleteWorkOrder::execute() {
+std::size_t DeleteWorkOrder::execute() {
   MutableBlockReference block(
       storage_manager_->getBlockMutable(input_block_id_, input_relation_));
   block->deleteTuples(predicate_);
@@ -171,6 +171,17 @@ void DeleteWorkOrder::execute() {
           scheduler_client_id_,
           std::move(tagged_message));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+
+  return 0;
+}
+
+void DeleteWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::DELETE);
+
+  proto->SetExtension(serialization::DeleteWorkOrderCompletionMessage::op_index, delete_operator_index_);
+  proto->SetExtension(serialization::DeleteWorkOrderCompletionMessage::relation_id, input_relation_.getID());
+  proto->SetExtension(serialization::DeleteWorkOrderCompletionMessage::block_id, input_block_id_);
+  proto->SetExtension(serialization::DeleteWorkOrderCompletionMessage::partition_id, partition_id_);
 }
 
 }  // namespace quickstep

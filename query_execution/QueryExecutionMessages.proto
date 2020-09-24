@@ -22,6 +22,7 @@ package quickstep.serialization;
 import "catalog/Catalog.proto";
 import "query_execution/QueryContext.proto";
 import "relational_operators/WorkOrder.proto";
+import "relational_operators/SortMergeRunOperator.proto";
 
 // Note: There are different types of completion messages for normal work orders
 // rebuild work orders. This can be potentially helpful when we want to collect
@@ -31,19 +32,19 @@ import "relational_operators/WorkOrder.proto";
 // order completion message, we may be interested in adding the compression
 // ratio or dictionary size of the rebuilt block.
 
-// Next tag: 9.
+// Next tag: 11.
 message WorkOrderCompletionMessage {
-  enum WorkOrderType {
+  enum WorkOrderRebuild {
     NORMAL = 0;
     REBUILD = 1;
   }
 
-  required WorkOrderType work_order_type = 1;
+  required WorkOrderRebuild work_order_rebuild = 1;
 
   required uint64 operator_index = 2;
   required uint64 worker_thread_index = 3;
   required uint64 query_id = 4;
-  required uint64 partition_id = 8;
+  required uint64 part_id = 8;
 
   // Epoch time in microseconds.
   optional uint64 execution_start_time = 5;
@@ -51,7 +52,246 @@ message WorkOrderCompletionMessage {
 
   // Required in the distributed version.
   optional uint64 shiftboss_index = 7;
+
+  optional uint64 memory_bytes = 9;
+
+  optional WorkOrderType work_order_type = 10;
+
+  // The convention for extension numbering is that extensions for a particular
+  // WorkOrderID should begin from (operator_type * 16).
+  extensions 16 to max;
 }
+
+// Next tag: 18.
+message AggregationWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional uint64 partition_id = 16;
+    optional fixed64 block_id = 17;
+  }
+}
+
+message BuildAggregationExistenceMapWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    optional int32 relation_id = 368;
+    optional fixed64 build_block_id = 369;
+    optional int32 build_attribute = 370;
+    optional uint64 partition_id = 371;
+  }
+}
+
+// Next tag: 41.
+message BuildHashWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional int32 relation_id = 32;
+    repeated int32 join_key_attributes = 33;
+    optional bool any_join_key_attributes_nullable = 34;
+    optional uint64 partition_id = 38;
+    optional fixed64 block_id = 36;
+  }
+}
+
+// Next tag: 53.
+message BuildLIPFilterWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional int32 relation_id = 48;
+    optional uint64 partition_id = 50;
+    optional fixed64 build_block_id = 49;
+  }
+}
+
+message DeleteWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional uint64 op_index = 96;
+    optional int32 relation_id = 97;
+    optional fixed64 block_id = 99;
+    optional uint64 partition_id = 100;
+  }
+}
+
+message DestroyAggregationStateWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    optional uint32 aggr_state_index = 352;
+    optional uint64 partition_id = 353;
+  }
+}
+
+message DestroyHashWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional uint32 join_hash_table_index = 112;
+    optional uint64 partition_id = 113;
+  }
+}
+
+message DropTableWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // If set, CatalogDatabaseCache will drop the relation.
+    optional int32 relation_id = 128;
+    // Optional, and maybe empty.
+    repeated fixed64 block_ids = 129;
+  }
+}
+
+// Next tag: 146.
+message FinalizeAggregationWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional uint64 partition_id = 144;
+    optional uint64 state_partition_id = 145;
+  }
+}
+
+// Next tag: 174.
+message HashJoinWorkOrderCompletionMessage {
+  enum HashJoinWorkOrderType {
+    HASH_ANTI_JOIN = 0;
+    HASH_INNER_JOIN = 1;
+    HASH_OUTER_JOIN = 2;
+    HASH_SEMI_JOIN = 3;
+  }
+
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional HashJoinWorkOrderType hash_join_work_order_type = 160;
+    optional int32 build_relation_id = 161;
+    optional int32 probe_relation_id = 162;
+    repeated int32 join_key_attributes = 163;
+    optional bool any_join_key_attributes_nullable = 164;
+    optional uint64 partition_id = 165;
+    optional fixed64 block_id = 166;
+
+    // Used by HashOuterJoinWorkOrder only.
+    repeated bool is_selection_on_build = 167;
+  }
+}
+
+message InitializeAggregationWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional uint64 partition_id = 400;
+    optional uint64 state_partition_id = 401;
+  }
+}
+
+// Next tag: 196.
+message NestedLoopsJoinWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional int32 left_relation_id = 192;
+    optional int32 right_relation_id = 193;
+    optional uint64 partition_id = 199;
+    optional fixed64 left_block_id = 194;
+    optional fixed64 right_block_id = 195;
+  }
+}
+
+message SampleWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional int32 relation_id = 208;
+    optional fixed64 block_id = 209;
+    optional bool is_block_sample = 210;
+    optional int32 percentage = 211;
+  }
+}
+
+message SaveBlocksWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional fixed64 block_id = 224;
+    optional bool force = 225;
+    optional uint64 partition_id = 226;
+  }
+}
+
+// Next tag: 250.
+message SelectWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional int32 relation_id = 240;
+    optional uint64 partition_id = 241;
+    optional fixed64 block_id = 242;
+    optional bool simple_projection = 243;
+
+    // When 'simple_projection' is true.
+    repeated int32 simple_selection = 244;
+  }
+}
+
+message SortMergeRunWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional uint64 op_index = 256;
+    repeated Run runs = 257;
+    optional uint64 top_k = 258;
+    optional uint64 merge_level = 259;
+    optional int32 relation_id = 260;
+  }
+}
+
+message SortRunGenerationWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional int32 relation_id = 273;
+    optional fixed64 block_id = 275;
+  }
+}
+
+message TableExportWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    optional fixed64 block_id = 416;
+    optional int32 relation_id = 417;
+  }
+}
+
+message TextScanWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional string filename = 304;
+    optional uint64 text_offset = 305;
+    optional uint64 text_segment_size = 306;
+    optional uint32 field_terminator = 307;  // For one-byte char.
+    optional bool process_escape_sequences = 308;
+  }
+}
+
+message UnionAllWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    optional int32 relation_id = 384;
+    optional fixed64 block_id = 385;
+    repeated int32 select_attribute_id = 386;
+  }
+}
+
+message UpdateWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required.
+    optional uint64 op_index = 320;
+    optional int32 relation_id = 321;
+    optional fixed64 block_id = 322;
+    optional uint64 partition_id = 323;
+  }
+}
+
+message WindowAggregationWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    // All required
+    repeated fixed64 block_ids = 336;
+  }
+}
+
+message RebuildWorkOrderCompletionMessage {
+  extend WorkOrderCompletionMessage {
+    optional fixed64 block_id = 432;
+    optional int32 relation_id = 433;
+    optional uint64 partition_id = 434;
+  }
+}
+
 
 message CatalogRelationNewBlockMessage {
   required int32 relation_id = 1;

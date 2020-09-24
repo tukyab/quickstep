@@ -87,9 +87,18 @@ serialization::WorkOrder* WindowAggregationOperator::createWorkOrderProto() {
 }
 
 
-void WindowAggregationWorkOrder::execute() {
-  state_->windowAggregateBlocks(output_destination_,
+std::size_t WindowAggregationWorkOrder::execute() {
+  return state_->windowAggregateBlocks(output_destination_,
                                 block_ids_);
 }
+
+void WindowAggregationWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::WINDOW_AGGREGATION);
+
+  for (const block_id bid : block_ids_) {
+    proto->AddExtension(serialization::WindowAggregationWorkOrderCompletionMessage::block_ids, bid);
+  }
+}
+
 
 }  // namespace quickstep

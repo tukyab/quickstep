@@ -93,6 +93,8 @@ class PolicyEnforcerSingleNode final : public PolicyEnforcerBase {
     worker_directory_->decrementNumQueuedWorkOrders(proto.worker_thread_index());
   }
 
+  void onQueryCompletion(QueryManagerBase *query_manager) override;
+
   const tmb::client_id foreman_client_id_;
   const std::size_t num_numa_nodes_;
 

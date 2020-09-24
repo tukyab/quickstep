@@ -66,9 +66,15 @@ bool DestroyHashOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *contai
   return true;
 }
 
-
-void DestroyHashWorkOrder::execute() {
+std::size_t DestroyHashWorkOrder::execute() {
   query_context_->destroyJoinHashTable(hash_table_index_, partition_id_);
+  return 0;
+}
+
+void DestroyHashWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::DESTROY_HASH);
+  proto->SetExtension(serialization::DestroyHashWorkOrderCompletionMessage::join_hash_table_index, hash_table_index_);
+  proto->SetExtension(serialization::DestroyHashWorkOrderCompletionMessage::partition_id, partition_id_);
 }
 
 }  // namespace quickstep

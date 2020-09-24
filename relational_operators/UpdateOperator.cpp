@@ -107,7 +107,7 @@ bool UpdateOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
   return true;
 }
 
-void UpdateWorkOrder::execute() {
+std::size_t UpdateWorkOrder::execute() {
   MutableBlockReference block(
       storage_manager_->getBlockMutable(input_block_id_, relation_));
 
@@ -147,6 +147,18 @@ void UpdateWorkOrder::execute() {
           scheduler_client_id_,
           std::move(tagged_message));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+
+  return block->getMemorySize();
+}
+
+void UpdateWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::UPDATE);
+
+  proto->SetExtension(serialization::UpdateWorkOrderCompletionMessage::op_index, update_operator_index_);
+  proto->SetExtension(serialization::UpdateWorkOrderCompletionMessage::relation_id, relation_.getID());
+  proto->SetExtension(serialization::UpdateWorkOrderCompletionMessage::block_id, input_block_id_);
+  proto->SetExtension(serialization::UpdateWorkOrderCompletionMessage::partition_id, partition_id_);
+
 }
 
 }  // namespace quickstep

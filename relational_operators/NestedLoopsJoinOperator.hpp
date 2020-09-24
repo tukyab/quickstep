@@ -369,7 +369,9 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
    *            some tuples inserted into the destination) when this exception
    *            is thrown, causing potential inconsistency.
    **/
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   template <bool LEFT_PACKED, bool RIGHT_PACKED>

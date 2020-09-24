@@ -76,11 +76,15 @@ bool TableGeneratorOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *con
 }
 
 
-void TableGeneratorWorkOrder::execute() {
+std::size_t TableGeneratorWorkOrder::execute() {
   ColumnVectorsValueAccessor temp_result;
   function_handle_.populateColumns(&temp_result);
 
-  output_destination_->bulkInsertTuples(&temp_result);
+  return output_destination_->bulkInsertTuples(&temp_result);
+}
+
+void TableGeneratorWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::TABLE_GENERATOR);
 }
 
 }  // namespace quickstep

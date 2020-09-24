@@ -447,13 +447,16 @@ serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const 
 }
 
 
-void HashInnerJoinWorkOrder::execute() {
+std::size_t HashInnerJoinWorkOrder::execute() {
   output_destination_->setInputPartitionId(partition_id_);
 
   BlockReference probe_block(
       storage_manager_->getBlock(block_id_, probe_relation_));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  std::size_t size = 0;
+  size += probe_block->getMemorySize();
 
   // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
   std::unique_ptr<TupleIdSequence> existence_map;
@@ -469,13 +472,15 @@ void HashInnerJoinWorkOrder::execute() {
   if (probe_accessor->getImplementationType() == ValueAccessor::Implementation::kSplitRowStore &&
       output_destination_->getInsertDestinationType() ==
           InsertDestination::InsertDestinationType::kBlockPoolInsertDestination) {
-    executeWithCopyElision(probe_accessor.get());
+    size += executeWithCopyElision(probe_accessor.get());
   } else {
-    executeWithoutCopyElision(probe_accessor.get());
+    size += executeWithoutCopyElision(probe_accessor.get());
   }
+
+  return size;
 }
 
-void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_accessor) {
+std::size_t HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_accessor) {
   VectorsOfPairsJoinedTuplesCollector collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
@@ -491,10 +496,13 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
         &collector);
   }
 
+  std::size_t size = 0;
+
   for (std::pair<const block_id, VectorOfTupleIdPair>
            &build_block_entry : *collector.getJoinedTuples()) {
     BlockReference build_block =
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
+    size += build_block->getMemorySize();
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
 
@@ -536,11 +544,13 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
     }
     cv_cache.reset();
 
-    output_destination_->bulkInsertTuples(&temp_result);
+    size += output_destination_->bulkInsertTuples(&temp_result);
   }
+
+  return size;
 }
 
-void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accessor) {
+std::size_t HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accessor) {
   PairsOfVectorsJoinedTuplesCollector collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
@@ -590,10 +600,13 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
     ++dest_attr;
   }
 
+  std::size_t size = 0;
+
   for (std::pair<const block_id, PairOfTupleIdVector>
            &build_block_entry : *collector.getJoinedTuples()) {
     BlockReference build_block =
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
+    size += build_block->getMemorySize();
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
     const std::vector<tuple_id> &build_tids = build_block_entry.second.second;
@@ -666,25 +679,34 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
     // for each pair of joined blocks incurs some extra overhead that could be
     // avoided by keeping checked-out MutableBlockReferences across iterations
     // of this loop, but that would get messy when combined with partitioning.
-    output_destination_->bulkInsertTuplesFromValueAccessors(accessor_attribute_map);
+    size += output_destination_->bulkInsertTuplesFromValueAccessors(accessor_attribute_map);
   }
+
+  return size;
 }
 
-void HashSemiJoinWorkOrder::execute() {
+std::size_t HashSemiJoinWorkOrder::execute() {
+  std::size_t size = 0;
+
   output_destination_->setInputPartitionId(partition_id_);
 
   if (residual_predicate_ == nullptr) {
-    executeWithoutResidualPredicate();
+    size += executeWithoutResidualPredicate();
   } else {
-    executeWithResidualPredicate();
+    size += executeWithResidualPredicate();
   }
+
+  return size;
 }
 
-void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
+std::size_t HashSemiJoinWorkOrder::executeWithResidualPredicate() {
+  std::size_t size = 0;
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  size += probe_block->getMemorySize();
 
   // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
   std::unique_ptr<TupleIdSequence> existence_map;
@@ -727,6 +749,7 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
     // Get the block from the build relation for this pair of matched tuples.
     BlockReference build_block =
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
+    size += build_block->getMemorySize();
     const TupleStorageSubBlock &build_store =
         build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(
@@ -766,16 +789,19 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
   }
   cv_cache.reset();
 
-  output_destination_->bulkInsertTuples(&temp_result);
+  size += output_destination_->bulkInsertTuples(&temp_result);
+  return size;
 }
 
-void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
+std::size_t HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
   DCHECK(residual_predicate_ == nullptr);
-
+  std::size_t size = 0;
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  size += probe_block->getMemorySize();
 
   // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
   std::unique_ptr<TupleIdSequence> existence_map;
@@ -831,16 +857,20 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
   }
   cv_cache.reset();
 
-  output_destination_->bulkInsertTuples(&temp_result);
+  size += output_destination_->bulkInsertTuples(&temp_result);
+  return size;
 }
 
-void HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
+std::size_t HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
   DCHECK(residual_predicate_ == nullptr);
 
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  std::size_t size = 0;
+  size += probe_block->getMemorySize();
 
   // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
   std::unique_ptr<TupleIdSequence> existence_map;
@@ -892,14 +922,18 @@ void HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
   }
   cv_cache.reset();
 
-  output_destination_->bulkInsertTuples(&temp_result);
+  size += output_destination_->bulkInsertTuples(&temp_result);
+  return size;
 }
 
-void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
+std::size_t HashAntiJoinWorkOrder::executeWithResidualPredicate() {
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  std::size_t size = 0;
+  size += probe_block->getMemorySize();
 
   // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
   std::unique_ptr<TupleIdSequence> existence_map;
@@ -945,6 +979,7 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
     // 2nd element is a matching tuple ID from the outer (probe) relation.
     BlockReference build_block = storage_manager_->getBlock(build_block_entry.first,
                                                             build_relation_);
+    size += build_block->getMemorySize();
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
     for (const std::pair<tuple_id, tuple_id> &hash_match
@@ -983,16 +1018,20 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
   }
   cv_cache.reset();
 
-  output_destination_->bulkInsertTuples(&temp_result);
+  size += output_destination_->bulkInsertTuples(&temp_result);
+  return size;
 }
 
-void HashOuterJoinWorkOrder::execute() {
+std::size_t HashOuterJoinWorkOrder::execute() {
   output_destination_->setInputPartitionId(partition_id_);
 
   const BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                                 probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  std::size_t size = 0;
+  size += probe_block->getMemorySize();
 
   // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
   std::unique_ptr<TupleIdSequence> existence_map;
@@ -1029,6 +1068,7 @@ void HashOuterJoinWorkOrder::execute() {
            &build_block_entry : *collector.getJoinedTupleMap()) {
     const BlockReference build_block =
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
+    size += build_block->getMemorySize();
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
 
@@ -1046,7 +1086,7 @@ void HashOuterJoinWorkOrder::execute() {
     }
     cv_cache.reset();
 
-    output_destination_->bulkInsertTuples(&temp_result);
+    size += output_destination_->bulkInsertTuples(&temp_result);
   }
 
   SubBlocksReference sub_blocks_ref(probe_store,
@@ -1094,7 +1134,77 @@ void HashOuterJoinWorkOrder::execute() {
     }
     cv_cache.reset();
 
-    output_destination_->bulkInsertTuples(&temp_result);
+    size += output_destination_->bulkInsertTuples(&temp_result);
+  }
+
+  return size;
+}
+
+void HashInnerJoinWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::HASH_JOIN);
+
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::hash_join_work_order_type,
+                      serialization::HashJoinWorkOrderCompletionMessage::HASH_INNER_JOIN);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::build_relation_id, build_relation_.getID());
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::probe_relation_id, probe_relation_.getID());
+  for (const attribute_id attr_id : join_key_attributes_) {
+    proto->AddExtension(serialization::HashJoinWorkOrderCompletionMessage::join_key_attributes, attr_id);
+  }
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::any_join_key_attributes_nullable,
+                      any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::partition_id, partition_id_);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::block_id, block_id_);
+}
+
+void HashAntiJoinWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::HASH_JOIN);
+
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::hash_join_work_order_type,
+                      serialization::HashJoinWorkOrderCompletionMessage::HASH_ANTI_JOIN);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::build_relation_id, build_relation_.getID());
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::probe_relation_id, probe_relation_.getID());
+  for (const attribute_id attr_id : join_key_attributes_) {
+    proto->AddExtension(serialization::HashJoinWorkOrderCompletionMessage::join_key_attributes, attr_id);
+  }
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::any_join_key_attributes_nullable,
+                      any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::partition_id, partition_id_);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::block_id, block_id_);
+}
+
+void HashSemiJoinWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::HASH_JOIN);
+
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::hash_join_work_order_type,
+                      serialization::HashJoinWorkOrderCompletionMessage::HASH_SEMI_JOIN);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::build_relation_id, build_relation_.getID());
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::probe_relation_id, probe_relation_.getID());
+  for (const attribute_id attr_id : join_key_attributes_) {
+    proto->AddExtension(serialization::HashJoinWorkOrderCompletionMessage::join_key_attributes, attr_id);
+  }
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::any_join_key_attributes_nullable,
+                      any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::partition_id, partition_id_);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::block_id, block_id_);
+}
+
+void HashOuterJoinWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::HASH_JOIN);
+
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::hash_join_work_order_type,
+                      serialization::HashJoinWorkOrderCompletionMessage::HASH_OUTER_JOIN);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::build_relation_id, build_relation_.getID());
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::probe_relation_id, probe_relation_.getID());
+  for (const attribute_id attr_id : join_key_attributes_) {
+    proto->AddExtension(serialization::HashJoinWorkOrderCompletionMessage::join_key_attributes, attr_id);
+  }
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::any_join_key_attributes_nullable,
+                      any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::block_id, block_id_);
+  proto->SetExtension(serialization::HashJoinWorkOrderCompletionMessage::partition_id, partition_id_);
+
+  for (const bool is_attribute_on_build : is_selection_on_build_) {
+    proto->AddExtension(serialization::HashJoinWorkOrderCompletionMessage::is_selection_on_build, is_attribute_on_build);
   }
 }
 

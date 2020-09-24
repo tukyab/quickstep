@@ -186,11 +186,22 @@ serialization::WorkOrder* SampleOperator::createWorkOrderProto(const block_id bl
   return proto;
 }
 
-void SampleWorkOrder::execute() {
+std::size_t SampleWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_));
 
   block->sample(is_block_sample_, percentage_, output_destination_);
+
+  return block->getMemorySize();
+}
+
+void SampleWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::SAMPLE);
+  proto->SetExtension(serialization::SampleWorkOrderCompletionMessage::relation_id, input_relation_.getID());
+  proto->SetExtension(serialization::SampleWorkOrderCompletionMessage::block_id, input_block_id_);
+  proto->SetExtension(serialization::SampleWorkOrderCompletionMessage::is_block_sample, is_block_sample_);
+  proto->SetExtension(serialization::SampleWorkOrderCompletionMessage::percentage, percentage_);
+
 }
 
 }  // namespace quickstep

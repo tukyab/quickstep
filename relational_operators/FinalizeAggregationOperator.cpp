@@ -96,8 +96,17 @@ bool FinalizeAggregationOperator::getAllWorkOrderProtos(WorkOrderProtosContainer
   return true;
 }
 
-void FinalizeAggregationWorkOrder::execute() {
+std::size_t FinalizeAggregationWorkOrder::execute() {
   state_->finalizeAggregate(state_partition_id_, output_destination_);
+  return 0;
+}
+
+void FinalizeAggregationWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::FINALIZE_AGGREGATION);
+  proto->SetExtension(serialization::FinalizeAggregationWorkOrderCompletionMessage::partition_id,
+                      partition_id_);
+  proto->SetExtension(serialization::FinalizeAggregationWorkOrderCompletionMessage::state_partition_id,
+                      state_partition_id_);
 }
 
 }  // namespace quickstep

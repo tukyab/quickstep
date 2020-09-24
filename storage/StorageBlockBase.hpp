@@ -81,6 +81,10 @@ class StorageBlockBase {
     dirty_ = false;
   }
 
+  inline std::size_t getMemorySize() const {
+    return block_memory_size_;
+  }
+
 #ifdef QUICKSTEP_DEBUG
   /**
    * @brief Atomically increment the reference count for this StorageBlockBase.

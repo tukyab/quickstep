@@ -121,8 +121,15 @@ serialization::WorkOrder* AggregationOperator::createWorkOrderProto(const block_
   return proto;
 }
 
-void AggregationWorkOrder::execute() {
-  state_->aggregateBlock(input_block_id_, lip_filter_adaptive_prober_.get());
+void AggregationWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::AGGREGATION);
+
+  proto->SetExtension(serialization::AggregationWorkOrderCompletionMessage::block_id, input_block_id_);
+  proto->SetExtension(serialization::AggregationWorkOrderCompletionMessage::partition_id, partition_id_);
+}
+
+std::size_t AggregationWorkOrder::execute() {
+  return state_->aggregateBlock(input_block_id_, lip_filter_adaptive_prober_.get());
 }
 
 }  // namespace quickstep

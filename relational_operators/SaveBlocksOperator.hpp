@@ -141,7 +141,9 @@ class SaveBlocksWorkOrder : public WorkOrder {
    * @exception FileWriteError An IO error occurred while writing the block's
    *            on-disk storage file.
    **/
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const block_id save_block_id_;

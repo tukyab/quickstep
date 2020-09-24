@@ -303,7 +303,7 @@ void SortMergeRunOperator::receiveFeedbackMessage(
                              run_output.getBlocksMutable());
 }
 
-void SortMergeRunWorkOrder::execute() {
+std::size_t SortMergeRunWorkOrder::execute() {
   // Merge input runs.
   merge_run_operator::RunMerger run_merger(sort_config_,
                                            std::move(input_runs_),
@@ -312,7 +312,7 @@ void SortMergeRunWorkOrder::execute() {
                                            output_destination_,
                                            merge_level_,
                                            storage_manager_);
-  run_merger.doMerge();
+  std::size_t size = run_merger.doMerge();
 
   // Serialize completion message with output run.
   SortMergeRunOutput output(run_merger.getMergeLevel(),
@@ -327,6 +327,25 @@ void SortMergeRunWorkOrder::execute() {
                       serialized_output.second);
   SendFeedbackMessage(
       bus_, ClientIDMap::Instance()->getValue(), scheduler_client_id_, msg);
+
+  return size;
+}
+
+void SortMergeRunWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::SORT_MERGE_RUN);
+
+  proto->SetExtension(serialization::SortMergeRunWorkOrderCompletionMessage::op_index, operator_index_);
+
+  for (const merge_run_operator::Run &run : input_runs_) {
+    serialization::Run *run_proto = proto->AddExtension(serialization::SortMergeRunWorkOrderCompletionMessage::runs);
+    for (const block_id block : run) {
+      run_proto->add_blocks(block);
+    }
+  }
+
+  proto->SetExtension(serialization::SortMergeRunWorkOrderCompletionMessage::top_k, top_k_);
+  proto->SetExtension(serialization::SortMergeRunWorkOrderCompletionMessage::merge_level, merge_level_);
+  proto->SetExtension(serialization::SortMergeRunWorkOrderCompletionMessage::relation_id, run_relation_.getID());
 }
 
 }  // namespace quickstep

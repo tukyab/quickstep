@@ -174,7 +174,7 @@ serialization::WorkOrder* BuildAggregationExistenceMapOperator
   return proto;
 }
 
-void BuildAggregationExistenceMapWorkOrder::execute() {
+std::size_t BuildAggregationExistenceMapWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(build_block_id_, input_relation_));
   std::unique_ptr<ValueAccessor> accessor(
@@ -195,18 +195,34 @@ void BuildAggregationExistenceMapWorkOrder::execute() {
                          attr_type.isNullable(),
                          accessor.get(),
                          existence_map);
-      return;
+      break;
     case TypeID::kLong:
       ExecuteHelper<std::int64_t>(build_attribute_,
                                   attr_type.isNullable(),
                                   accessor.get(),
                                   existence_map);
-      return;
+      break;
     default:
       LOG(FATAL) << "Build attribute type not supported by "
                  << "BuildAggregationExistenceMapOperator: "
                  << attr_type.getName();
+      break;
   }
+
+  return block->getMemorySize();
+}
+
+void BuildAggregationExistenceMapWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::BUILD_AGGREGATION_EXISTENCE_MAP);
+
+  proto->SetExtension(serialization::BuildAggregationExistenceMapWorkOrderCompletionMessage::relation_id,
+                      input_relation_.getID());
+  proto->SetExtension(serialization::BuildAggregationExistenceMapWorkOrderCompletionMessage::build_block_id,
+                      build_block_id_);
+  proto->SetExtension(serialization::BuildAggregationExistenceMapWorkOrderCompletionMessage::build_attribute,
+                      build_attribute_);
+  proto->SetExtension(serialization::BuildAggregationExistenceMapWorkOrderCompletionMessage::partition_id,
+                      partition_id_);
 }
 
 }  // namespace quickstep

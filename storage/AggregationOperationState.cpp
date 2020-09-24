@@ -425,7 +425,7 @@ void AggregationOperationState::initialize(const std::size_t partition_id) {
   }
 }
 
-void AggregationOperationState::aggregateBlock(const block_id input_block,
+std::size_t AggregationOperationState::aggregateBlock(const block_id input_block,
                                                LIPFilterAdaptiveProber *lip_filter_adaptive_prober) {
   BlockReference block(
       storage_manager_->getBlock(input_block, input_relation_));
@@ -471,6 +471,8 @@ void AggregationOperationState::aggregateBlock(const block_id input_block,
   } else {
     aggregateBlockHashTable(accessor_mux);
   }
+
+  return block->getMemorySize();
 }
 
 void AggregationOperationState::aggregateBlockSingleState(

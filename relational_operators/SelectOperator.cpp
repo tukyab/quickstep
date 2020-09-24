@@ -158,7 +158,7 @@ serialization::WorkOrder* SelectOperator::createWorkOrderProto(const partition_i
   return proto;
 }
 
-void SelectWorkOrder::execute() {
+std::size_t SelectWorkOrder::execute() {
   output_destination_->setInputPartitionId(partition_id_);
 
   BlockReference block(
@@ -191,6 +191,22 @@ void SelectWorkOrder::execute() {
     block->select(*DCHECK_NOTNULL(selection_),
                   matches.get(),
                   output_destination_);
+  }
+
+  return block->getMemorySize();
+}
+
+void SelectWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::SELECT);
+
+  proto->SetExtension(serialization::SelectWorkOrderCompletionMessage::relation_id, input_relation_.getID());
+  proto->SetExtension(serialization::SelectWorkOrderCompletionMessage::partition_id, partition_id_);
+  proto->SetExtension(serialization::SelectWorkOrderCompletionMessage::block_id, input_block_id_);
+  proto->SetExtension(serialization::SelectWorkOrderCompletionMessage::simple_projection, simple_projection_);
+  if (simple_projection_) {
+    for (const attribute_id attr_id : simple_selection_) {
+      proto->AddExtension(serialization::SelectWorkOrderCompletionMessage::simple_selection, attr_id);
+    }
   }
 }
 

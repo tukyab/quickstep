@@ -43,7 +43,11 @@ class MockNUMAWorkOrder : public WorkOrder {
     return id_;
   }
 
-  void execute() override {}
+  std::size_t execute() override {
+    return 0;
+  }
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override {};
 
  private:
   const int id_;

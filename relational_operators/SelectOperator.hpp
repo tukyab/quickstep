@@ -366,7 +366,9 @@ class SelectWorkOrder : public WorkOrder {
    *            destination) when this exception is thrown, causing potential
    *            inconsistency.
    **/
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const CatalogRelationSchema &input_relation_;

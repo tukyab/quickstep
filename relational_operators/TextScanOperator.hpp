@@ -222,7 +222,9 @@ class TextScanWorkOrder : public WorkOrder {
    * @exception TupleTooLargeForBlock A tuple in the text file was too large
    *            to fit in a StorageBlock.
    **/
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   /**

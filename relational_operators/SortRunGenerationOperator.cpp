@@ -121,7 +121,7 @@ serialization::WorkOrder* SortRunGenerationOperator::createWorkOrderProto(const 
 }
 
 
-void SortRunGenerationWorkOrder::execute() {
+std::size_t SortRunGenerationWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_));
 
@@ -133,6 +133,15 @@ void SortRunGenerationWorkOrder::execute() {
               sort_config_.getNullOrdering(),
               &sorted_sequence,
               output_destination_);
+
+  return block->getMemorySize();
+}
+
+void SortRunGenerationWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::SORT_RUN_GENERATION);
+
+  proto->SetExtension(serialization::SortRunGenerationWorkOrderCompletionMessage::relation_id, input_relation_.getID());
+  proto->SetExtension(serialization::SortRunGenerationWorkOrderCompletionMessage::block_id, input_block_id_);
 }
 
 }  // namespace quickstep

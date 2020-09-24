@@ -159,7 +159,7 @@ serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id
   return proto;
 }
 
-void BuildHashWorkOrder::execute() {
+std::size_t BuildHashWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(build_block_id_, input_relation_));
 
@@ -204,6 +204,22 @@ void BuildHashWorkOrder::execute() {
 
   CHECK(result == HashTablePutResult::kOK)
       << "Failed to add entries to join hash table.";
+
+  return block->getMemorySize();
 }
+
+void BuildHashWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::BUILD_HASH);
+
+  proto->SetExtension(serialization::BuildHashWorkOrderCompletionMessage::relation_id, input_relation_.getID());
+  for (const attribute_id attr_id : join_key_attributes_) {
+    proto->AddExtension(serialization::BuildHashWorkOrderCompletionMessage::join_key_attributes, attr_id);
+  }
+  proto->SetExtension(serialization::BuildHashWorkOrderCompletionMessage::any_join_key_attributes_nullable,
+                      any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::BuildHashWorkOrderCompletionMessage::partition_id, partition_id_);
+  proto->SetExtension(serialization::BuildHashWorkOrderCompletionMessage::block_id, build_block_id_);
+}
+
 
 }  // namespace quickstep

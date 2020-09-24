@@ -221,7 +221,9 @@ class TableExportToStringWorkOrder : public WorkOrder {
 
   ~TableExportToStringWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   inline std::string quoteCSVField(std::string &&field) const;  // NOLINT(whitespace/operators)

@@ -203,7 +203,9 @@ class SortRunGenerationWorkOrder : public WorkOrder {
 
   ~SortRunGenerationWorkOrder() {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const CatalogRelationSchema &input_relation_;

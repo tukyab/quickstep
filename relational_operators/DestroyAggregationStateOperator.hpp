@@ -114,7 +114,9 @@ class DestroyAggregationStateWorkOrder : public WorkOrder {
 
   ~DestroyAggregationStateWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;

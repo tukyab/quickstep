@@ -188,7 +188,9 @@ class SampleWorkOrder : public WorkOrder {
    *            (with some tuples inserted into the destination) when this
    *            exception is thrown, causing potential inconsistency.
    **/
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const CatalogRelationSchema &input_relation_;

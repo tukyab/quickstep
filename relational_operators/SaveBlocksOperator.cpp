@@ -84,11 +84,20 @@ void SaveBlocksOperator::updateCatalogOnCompletion() {
   relation_->getStatisticsMutable()->setExactness(false);
 }
 
-void SaveBlocksWorkOrder::execute() {
+std::size_t SaveBlocksWorkOrder::execute() {
   // It may happen that the block gets saved to disk as a result of an eviction,
   // before this invocation. In either case, we don't care about the return
   // value of saveBlockOrBlob.
   storage_manager_->saveBlockOrBlob(save_block_id_, force_);
+  return 0;
+}
+
+void SaveBlocksWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::SAVE_BLOCKS);
+  proto->SetExtension(serialization::SaveBlocksWorkOrderCompletionMessage::block_id, save_block_id_);
+  proto->SetExtension(serialization::SaveBlocksWorkOrderCompletionMessage::force, force_);
+  proto->SetExtension(serialization::SaveBlocksWorkOrderCompletionMessage::partition_id, partition_id_);
+
 }
 
 }  // namespace quickstep

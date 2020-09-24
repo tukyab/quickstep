@@ -161,7 +161,7 @@ void TableExportOperator::receiveFeedbackMessage(
   }
 }
 
-void TableExportToStringWorkOrder::execute() {
+std::size_t TableExportToStringWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_));
   std::unique_ptr<ValueAccessor> accessor(
@@ -188,6 +188,8 @@ void TableExportToStringWorkOrder::execute() {
                       sizeof(input_block_id_));
   SendFeedbackMessage(
       bus_, ClientIDMap::Instance()->getValue(), scheduler_client_id_, msg);
+
+  return block->getMemorySize();
 }
 
 inline std::string TableExportToStringWorkOrder::quoteCSVField(
@@ -331,6 +333,12 @@ void TableExportToStringWorkOrder::writeToString(ValueAccessor *accessor,
     });
     output->push_back('\n');
   }
+}
+
+void TableExportToStringWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::TABLE_EXPORT_TO_STRING);
+  proto->SetExtension(serialization::TableExportWorkOrderCompletionMessage::relation_id, input_relation_.getID());
+  proto->SetExtension(serialization::TableExportWorkOrderCompletionMessage::block_id, input_block_id_);
 }
 
 }  // namespace quickstep

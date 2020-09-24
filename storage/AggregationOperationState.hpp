@@ -191,7 +191,7 @@ class AggregationOperationState {
    * @param lip_filter_adaptive_prober The LIPFilter prober for pre-filtering
    *        the block.
    **/
-  void aggregateBlock(const block_id input_block,
+  std::size_t aggregateBlock(const block_id input_block,
                       LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr);
 
   /**

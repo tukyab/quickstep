@@ -119,7 +119,9 @@ class InitializeAggregationWorkOrder : public WorkOrder {
 
   ~InitializeAggregationWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const std::size_t state_partition_id_;

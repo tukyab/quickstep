@@ -220,7 +220,7 @@ serialization::WorkOrder* TextScanOperator::createWorkOrderProto(
   return proto;
 }
 
-void TextScanWorkOrder::execute() {
+std::size_t TextScanWorkOrder::execute() {
   const CatalogRelationSchema &relation = output_destination_->getRelation();
   std::vector<Tuple> tuples;
   bool is_faulty;
@@ -276,7 +276,7 @@ void TextScanWorkOrder::execute() {
     if (file == nullptr) {
       LOG(ERROR) << "Failed to open file " << filename_
                  << " with error: " << strerror(errno);
-      return;
+      return 0;
     }
     std::fseek(file, text_offset_, SEEK_SET);
     bytes_read = std::fread(buffer, 1, text_segment_size_, file);
@@ -299,7 +299,7 @@ void TextScanWorkOrder::execute() {
   }
   if (row_ptr >= buffer_end) {
     // This block does not even contain a newline character.
-    return;
+    return 0;
   }
 
   // Locate the last newline character.
@@ -438,7 +438,7 @@ void TextScanWorkOrder::execute() {
   }
 
   // Bulk insert the tuples.
-  output_destination_->bulkInsertTuples(&column_vectors);
+  return output_destination_->bulkInsertTuples(&column_vectors);
 }
 
 std::vector<TypedValue> TextScanWorkOrder::parseRow(const char **row_ptr,
@@ -641,6 +641,18 @@ void TextScanWorkOrder::extractFieldString(const char **field_ptr,
     }
   }
   *field_ptr = cur_ptr + 1;
+}
+
+void TextScanWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::TEXT_SCAN);
+
+  proto->SetExtension(serialization::TextScanWorkOrderCompletionMessage::filename, filename_);
+  proto->SetExtension(serialization::TextScanWorkOrderCompletionMessage::text_offset, text_offset_);
+  proto->SetExtension(serialization::TextScanWorkOrderCompletionMessage::text_segment_size, text_segment_size_);
+  proto->SetExtension(serialization::TextScanWorkOrderCompletionMessage::field_terminator,
+                      field_terminator_);
+  proto->SetExtension(serialization::TextScanWorkOrderCompletionMessage::process_escape_sequences,
+                      process_escape_sequences_);
 }
 
 }  // namespace quickstep

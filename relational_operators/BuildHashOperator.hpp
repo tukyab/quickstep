@@ -259,7 +259,9 @@ class BuildHashWorkOrder : public WorkOrder {
     return input_relation_;
   }
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const CatalogRelationSchema &input_relation_;

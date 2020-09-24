@@ -66,8 +66,15 @@ bool DestroyAggregationStateOperator::getAllWorkOrderProtos(WorkOrderProtosConta
   return true;
 }
 
-void DestroyAggregationStateWorkOrder::execute() {
+std::size_t DestroyAggregationStateWorkOrder::execute() {
   query_context_->destroyAggregationState(aggr_state_index_, partition_id_);
+  return 0;
+}
+
+void DestroyAggregationStateWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::DESTROY_AGGREGATION_STATE);
+  proto->SetExtension(serialization::DestroyAggregationStateWorkOrderCompletionMessage::aggr_state_index, aggr_state_index_);
+  proto->SetExtension(serialization::DestroyAggregationStateWorkOrderCompletionMessage::partition_id, partition_id_);
 }
 
 }  // namespace quickstep

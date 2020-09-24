@@ -74,9 +74,12 @@ class MockWorkOrder : public WorkOrder {
   explicit MockWorkOrder(const int op_index)
       : WorkOrder(0), op_index_(op_index) {}
 
-  void execute() override {
+  std::size_t execute() override {
     VLOG(3) << "WorkOrder[" << op_index_ << "] executing.";
+    return 0;
   }
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override {};
 
   inline QueryPlan::DAGNodeIndex getOpIndex() const {
     return op_index_;

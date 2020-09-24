@@ -143,7 +143,7 @@ serialization::WorkOrder* BuildLIPFilterOperator::createWorkOrderProto(const par
   return proto;
 }
 
-void BuildLIPFilterWorkOrder::execute() {
+std::size_t BuildLIPFilterWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(build_block_id_, input_relation_));
 
@@ -169,6 +169,15 @@ void BuildLIPFilterWorkOrder::execute() {
   } else {
     lip_filter_builder_->insertValueAccessor(accessor.get());
   }
+
+  return block->getMemorySize();
 }
 
+void BuildLIPFilterWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::BUILD_LIP_FILTER);
+
+  proto->SetExtension(serialization::BuildLIPFilterWorkOrderCompletionMessage::relation_id, input_relation_.getID());
+  proto->SetExtension(serialization::BuildLIPFilterWorkOrderCompletionMessage::partition_id, partition_id_);
+  proto->SetExtension(serialization::BuildLIPFilterWorkOrderCompletionMessage::build_block_id, build_block_id_);
+  }
 }  // namespace quickstep

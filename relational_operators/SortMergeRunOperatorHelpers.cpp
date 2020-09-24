@@ -130,7 +130,7 @@ bool MergeTree::getMergeJobs(std::vector<MergeJob> *jobs) {
          (runs_scheduled_[final_level_] == runs_expected_[final_level_]);
 }
 
-void RunMerger::doMerge() {
+std::size_t RunMerger::doMerge() {
   block_id first_valid_block = kInvalidBlockId;
   for (const Run &run : input_runs_) {
     if (!run.empty()) {
@@ -181,6 +181,8 @@ void RunMerger::doMerge() {
   // Flush the final block actively, since Foreman will not destruct the
   // WorkOrder before handling blocks generated from WorkOrders.
   output_run_creator_.flushBlock();
+
+  return block->getMemorySize();
 }
 
 template <bool check_top_k>

@@ -148,7 +148,9 @@ class WindowAggregationWorkOrder : public WorkOrder {
 
   ~WindowAggregationWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   WindowAggregationOperationState *state_;

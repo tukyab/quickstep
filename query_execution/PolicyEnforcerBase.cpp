@@ -45,10 +45,12 @@ DECLARE_bool(visualize_execution_dag);
 DEFINE_bool(profile_and_report_workorder_perf, false,
     "If true, Quickstep will record the exceution time of all the individual "
     "normal work orders and report it at the end of query execution.");
+DEFINE_bool(tenzin_profiling, false,
+            "If true, record time and memory usage into file.");
 
 PolicyEnforcerBase::PolicyEnforcerBase(CatalogDatabaseLite *catalog_database)
     : catalog_database_(catalog_database),
-      profile_individual_workorders_(FLAGS_profile_and_report_workorder_perf || FLAGS_visualize_execution_dag) {
+      profile_individual_workorders_(FLAGS_profile_and_report_workorder_perf || FLAGS_visualize_execution_dag || FLAGS_tenzin_profiling) {
 }
 
 void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
@@ -72,7 +74,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
       DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
 
       op_index = proto.operator_index();
-      admitted_queries_[query_id]->processWorkOrderCompleteMessage(op_index, proto.partition_id());
+      admitted_queries_[query_id]->processWorkOrderCompleteMessage(op_index, proto.part_id());
       break;
     }
     case kRebuildWorkOrderCompleteMessage: {
@@ -87,7 +89,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
       DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
 
       op_index = proto.operator_index();
-      admitted_queries_[query_id]->processRebuildWorkOrderCompleteMessage(op_index, proto.partition_id());
+      admitted_queries_[query_id]->processRebuildWorkOrderCompleteMessage(op_index, proto.part_id());
       break;
     }
     case kCatalogRelationNewBlockMessage: {
@@ -178,9 +180,13 @@ void PolicyEnforcerBase::recordTimeForWorkOrder(
   workorder_time_entries.emplace_back();
   WorkOrderTimeEntry &entry = workorder_time_entries.back();
   entry.worker_id = proto.worker_thread_index(),
+  entry.part_id = proto.part_id(),
+  entry.rebuild = proto.work_order_rebuild(),
   entry.operator_id = proto.operator_index(),
   entry.start_time = proto.execution_start_time(),
-  entry.end_time = proto.execution_end_time();
+  entry.end_time = proto.execution_end_time(),
+  entry.memory_bytes = proto.memory_bytes();
+  entry.proto = proto;
 }
 
 }  // namespace quickstep

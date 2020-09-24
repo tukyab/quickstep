@@ -138,7 +138,9 @@ class InsertWorkOrder : public WorkOrder {
    * @exception TupleTooLargeForBlock The tuple was too large to insert into an
    *            empty block provided by output_destination_index_ in query_context.
    **/
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   InsertDestination *output_destination_;

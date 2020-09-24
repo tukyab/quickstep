@@ -84,10 +84,16 @@ bool InsertOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
 }
 
 
-void InsertWorkOrder::execute() {
+std::size_t InsertWorkOrder::execute() {
+  std::size_t size = 0;
   for (const auto &tuple : tuples_) {
-    output_destination_->insertTuple(*tuple);
+    size += output_destination_->insertTuple(*tuple);
   }
+  return size;
+}
+
+void InsertWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::INSERT);
 }
 
 }  // namespace quickstep

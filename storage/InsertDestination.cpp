@@ -167,13 +167,15 @@ bool InsertDestination::ProtoIsValid(const serialization::InsertDestination &pro
   return true;
 }
 
-void InsertDestination::insertTuple(const Tuple &tuple) {
+std::size_t InsertDestination::insertTuple(const Tuple &tuple) {
   MutableBlockReference output_block = getBlockForInsertion();
+  std::size_t size = output_block->getMemorySize();
 
   try {
     while (!output_block->insertTuple(tuple)) {
       returnBlock(std::move(output_block), true);
       output_block = getBlockForInsertion();
+      size += output_block->getMemorySize();
     }
   } catch (...) {
     returnBlock(std::move(output_block), false);
@@ -181,6 +183,7 @@ void InsertDestination::insertTuple(const Tuple &tuple) {
   }
 
   returnBlock(std::move(output_block), false);
+  return size;
 }
 
 void InsertDestination::insertTupleInBatch(const Tuple &tuple) {
@@ -199,13 +202,15 @@ void InsertDestination::insertTupleInBatch(const Tuple &tuple) {
   returnBlock(std::move(output_block), false);
 }
 
-void InsertDestination::bulkInsertTuples(ValueAccessor *accessor, const bool always_mark_full) {
+std::size_t InsertDestination::bulkInsertTuples(ValueAccessor *accessor, const bool always_mark_full) {
+  std::size_t size = 0;
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
     accessor->beginIteration();
     while (!accessor->iterationFinished()) {
       MutableBlockReference output_block = this->getBlockForInsertion();
+      size += output_block->getMemorySize();
       // FIXME(chasseur): Deal with TupleTooLargeForBlock exception.
       const auto num_tuples_inserted = output_block->bulkInsertTuples(accessor);
       this->returnBlock(std::move(output_block),
@@ -213,6 +218,7 @@ void InsertDestination::bulkInsertTuples(ValueAccessor *accessor, const bool alw
                             always_mark_full);
     }
   });
+  return size;
 }
 
 void InsertDestination::bulkInsertTuplesWithRemappedAttributes(
@@ -253,14 +259,16 @@ void removeGapOnlyAccessors(
   }
 }
 
-void InsertDestination::bulkInsertTuplesFromValueAccessors(
+std::size_t InsertDestination::bulkInsertTuplesFromValueAccessors(
     const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map) {
   // Handle pathological corner case where there are no accessors
   if (accessor_attribute_map.size() == 0)
-    return;
+    return 0;
 
   std::vector<std::pair<ValueAccessor *, const std::vector<attribute_id>>> reduced_accessor_attribute_map;
   removeGapOnlyAccessors(&accessor_attribute_map, &reduced_accessor_attribute_map);
+
+  std::size_t size = 0;
 
   // We assume that all input accessors have the same number of tuples, so
   // the iterations finish together. Therefore, we can just check the first one.
@@ -269,6 +277,7 @@ void InsertDestination::bulkInsertTuplesFromValueAccessors(
     tuple_id num_tuples_to_insert = kCatalogMaxID;
     tuple_id num_tuples_inserted = 0;
     MutableBlockReference output_block = this->getBlockForInsertion();
+    size += output_block->getMemorySize();
 
     // Now iterate through all the accessors and do one round of bulk-insertion
     // of partial tuples into the selected output_block.
@@ -311,6 +320,8 @@ void InsertDestination::bulkInsertTuplesFromValueAccessors(
     output_block->bulkInsertPartialTuplesFinalize(num_tuples_inserted);
     this->returnBlock(std::move(output_block), !first_accessor->iterationFinishedVirtual());
   }
+
+  return size;
 }
 
 void InsertDestination::insertTuplesFromVector(std::vector<Tuple>::const_iterator begin,
@@ -552,15 +563,17 @@ PartitionSchemeHeader::PartitionAttributeIds PartitionAwareInsertDestination::ge
   return partition_scheme_header_->getPartitionAttributeIds();
 }
 
-void PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
+std::size_t PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
   const partition_id part_id = getPartitionId(tuple);
 
   MutableBlockReference output_block = getBlockForInsertionInPartition(part_id);
+  std::size_t size = output_block->getMemorySize();
 
   try {
     while (!output_block->insertTuple(tuple)) {
       returnBlockInPartition(std::move(output_block), true, part_id);
       output_block = getBlockForInsertionInPartition(part_id);
+      size += output_block->getMemorySize();
     }
   }
   catch (...) {
@@ -569,6 +582,7 @@ void PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
   }
 
   returnBlockInPartition(std::move(output_block), false, part_id);
+  return size;
 }
 
 void PartitionAwareInsertDestination::insertTupleInBatch(const Tuple &tuple) {
@@ -590,14 +604,16 @@ void PartitionAwareInsertDestination::insertTupleInBatch(const Tuple &tuple) {
   returnBlockInPartition(std::move(output_block), false, part_id);
 }
 
-void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, const bool always_mark_full) {
+std::size_t PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, const bool always_mark_full) {
   const std::size_t num_partitions = partition_scheme_header_->getNumPartitions();
+  std::size_t size = 0;
 
   InvokeOnAnyValueAccessor(
       accessor,
       [this,
        &always_mark_full,
-       &num_partitions](auto *accessor) -> void {  // NOLINT(build/c++11)
+       &num_partitions,
+       &size](auto *accessor) -> void {  // NOLINT(build/c++11)
     std::vector<std::unique_ptr<TupleIdSequence>> partition_membership(num_partitions);
 
     // Create a tuple-id sequence for each partition.
@@ -623,6 +639,7 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
       adapter[partition]->beginIteration();
       while (!adapter[partition]->iterationFinished()) {
         MutableBlockReference output_block = this->getBlockForInsertionInPartition(partition);
+        size += output_block->getMemorySize();
         const auto num_tuples_inserted = output_block->bulkInsertTuples(adapter[partition].get());
         this->returnBlockInPartition(std::move(output_block),
                                      num_tuples_inserted == 0 || !adapter[partition]->iterationFinished() ||
@@ -631,6 +648,8 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
       }
     }
   });
+
+  return size;
 }
 
 void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(

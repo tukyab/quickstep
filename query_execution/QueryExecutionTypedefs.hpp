@@ -26,6 +26,7 @@
 
 #include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED
 #include "threading/ThreadIDBasedMap.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
 
 #include "tmb/address.h"
 #include "tmb/id_typedefs.h"
@@ -34,6 +35,8 @@
 #include "tmb/tagged_message.h"
 
 namespace quickstep {
+
+using serialization::WorkOrderCompletionMessage;
 
 /** \addtogroup QueryExecution
  *  @{
@@ -129,9 +132,13 @@ enum QueryExecutionMessageType : message_type_id {
 // Profiling record for an individual work order.
 struct WorkOrderTimeEntry {
   std::size_t worker_id;
+  std::size_t part_id;
   std::size_t operator_id;
+  std::size_t rebuild;
   std::size_t start_time;  // Epoch time measured in microseconds
   std::size_t end_time;  // Epoch time measured in microseconds
+  std::size_t memory_bytes;
+  WorkOrderCompletionMessage proto;
 };
 // Key = query ID.
 // Value = vector of work order profiling records.

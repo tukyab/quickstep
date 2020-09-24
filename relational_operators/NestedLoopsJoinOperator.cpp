@@ -466,7 +466,7 @@ void NestedLoopsJoinWorkOrder::executeHelper(const TupleStorageSubBlock &left_st
   }
 }
 
-void NestedLoopsJoinWorkOrder::execute() {
+std::size_t NestedLoopsJoinWorkOrder::execute() {
   BlockReference left(
       storage_manager_->getBlock(left_block_id_, left_input_relation_));
   BlockReference right(
@@ -488,6 +488,18 @@ void NestedLoopsJoinWorkOrder::execute() {
       executeHelper<false, false>(left_store, right_store);
     }
   }
+
+  return left->getMemorySize() + right->getMemorySize();
+}
+
+void NestedLoopsJoinWorkOrder::setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+  proto->set_work_order_type(serialization::NESTED_LOOP_JOIN);
+
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrderCompletionMessage::left_relation_id, left_input_relation_.getID());
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrderCompletionMessage::right_relation_id, right_input_relation_.getID());
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrderCompletionMessage::partition_id, partition_id_);
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrderCompletionMessage::left_block_id, left_block_id_);
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrderCompletionMessage::right_block_id, right_block_id_);
 }
 
 }  // namespace quickstep

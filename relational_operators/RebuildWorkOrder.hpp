@@ -78,7 +78,7 @@ class RebuildWorkOrder : public WorkOrder {
 
   ~RebuildWorkOrder() {}
 
-  void execute() {
+  std::size_t execute() {
     if (!block_ref_->rebuild()) {
       LOG_WARNING("Rebuilding of StorageBlock with ID: "
                   << block_ref_->getID() << " invalidated one or more "
@@ -111,6 +111,14 @@ class RebuildWorkOrder : public WorkOrder {
                                            scheduler_client_id_,
                                            std::move(tagged_message));
     CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+
+    return block_ref_->getMemorySize();
+  }
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) {
+    proto->SetExtension(serialization::RebuildWorkOrderCompletionMessage::block_id, block_ref_->getID());
+    proto->SetExtension(serialization::RebuildWorkOrderCompletionMessage::relation_id, input_relation_id_);
+    proto->SetExtension(serialization::RebuildWorkOrderCompletionMessage::partition_id, partition_id_);
   }
 
  private:

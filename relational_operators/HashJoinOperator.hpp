@@ -414,12 +414,14 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    *            destination) when this exception is thrown, causing potential
    *            inconsistency.
    **/
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
-  void executeWithoutCopyElision(ValueAccessor *probe_accesor);
+  std::size_t executeWithoutCopyElision(ValueAccessor *probe_accesor);
 
-  void executeWithCopyElision(ValueAccessor *probe_accessor);
+  std::size_t executeWithCopyElision(ValueAccessor *probe_accessor);
 
   const CatalogRelationSchema &build_relation_;
   const CatalogRelationSchema &probe_relation_;
@@ -550,12 +552,14 @@ class HashSemiJoinWorkOrder : public WorkOrder {
 
   ~HashSemiJoinWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
-  void executeWithoutResidualPredicate();
+  std::size_t executeWithoutResidualPredicate();
 
-  void executeWithResidualPredicate();
+  std::size_t executeWithResidualPredicate();
 
   const CatalogRelationSchema &build_relation_;
   const CatalogRelationSchema &probe_relation_;
@@ -686,20 +690,25 @@ class HashAntiJoinWorkOrder : public WorkOrder {
 
   ~HashAntiJoinWorkOrder() override {}
 
-  void execute() override {
+  std::size_t execute() override {
+    std::size_t size = 0;
     output_destination_->setInputPartitionId(partition_id_);
 
     if (residual_predicate_ == nullptr) {
-      executeWithoutResidualPredicate();
+      size += executeWithoutResidualPredicate();
     } else {
-      executeWithResidualPredicate();
+      size += executeWithResidualPredicate();
     }
+
+    return size;
   }
 
- private:
-  void executeWithoutResidualPredicate();
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
-  void executeWithResidualPredicate();
+ private:
+  std::size_t executeWithoutResidualPredicate();
+
+  std::size_t executeWithResidualPredicate();
 
   const CatalogRelationSchema &build_relation_;
   const CatalogRelationSchema &probe_relation_;
@@ -826,7 +835,9 @@ class HashOuterJoinWorkOrder : public WorkOrder {
 
   ~HashOuterJoinWorkOrder() override {}
 
-  void execute() override;
+  std::size_t execute() override;
+
+  void setProtoValues(serialization::WorkOrderCompletionMessage* proto) override;
 
  private:
   const CatalogRelationSchema &build_relation_;

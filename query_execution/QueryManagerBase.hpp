@@ -164,6 +164,15 @@ class QueryManagerBase {
     return dag_visualizer_.get();
   }
 
+  /**
+   * @brief Get the query's current memory consumption in bytes.
+   *
+   * @note This method returns a best guess consumption, at the time of the call.
+   **/
+  virtual std::size_t getQueryMemoryConsumptionBytes() const {
+    return 0;
+  }
+
  protected:
   /**
    * @brief This function does the following things:
@@ -218,15 +227,6 @@ class QueryManagerBase {
    **/
   inline bool checkRebuildInitiated(const dag_node_index index) const {
     return query_exec_state_->hasRebuildInitiated(index);
-  }
-
-  /**
-   * @brief Get the query's current memory consumption in bytes.
-   *
-   * @note This method returns a best guess consumption, at the time of the call.
-   **/
-  virtual std::size_t getQueryMemoryConsumptionBytes() const {
-    return 0;
   }
 
   std::unique_ptr<QueryHandle> query_handle_;
