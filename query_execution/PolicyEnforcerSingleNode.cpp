@@ -122,13 +122,22 @@ bool PolicyEnforcerSingleNode::admitQuery(QueryHandle *query_handle) {
   }
 }
 
+std::string replaceQuote(std::string proto) {
+  for (size_t i = 0; i < proto.size(); ++i) {
+    if (proto[i] == '"') {
+        proto.replace(i, 1, "\'");
+    }
+  }
+  return proto;
+}
+
 void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager) {
   const QueryHandle *query_handle = query_manager->query_handle();
   const std::size_t query_id = query_handle->query_id();
 
   if (FLAGS_tenzin_profiling && hasProfilingResults(query_id)) {
     std::ostringstream txt_filename;
-    txt_filename << query_id << ".txt";
+    txt_filename << "record.json";
 
     const auto &dag = query_handle->getQueryPlan().getQueryPlanDAG();
     std::size_t num_nodes = dag.size();
@@ -141,31 +150,34 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
     std::vector<std::size_t> time_end(num_nodes, 0);
     std::vector<std::size_t> time_elapsed(num_nodes, 0);
     std::vector<std::size_t> memory_bytes(num_nodes, 0);
+    std::vector<std::size_t> num_work_orders(num_nodes, 0);
 
-    FILE *fp = std::fopen(txt_filename.str().c_str(), "w");
+    FILE *fp = std::fopen(txt_filename.str().c_str(), "a");
     CHECK_NOTNULL(fp);
     std::ostringstream txt;
 
     // per work order
     std::vector<WorkOrderTimeEntry> profilingResults = getProfilingResults(query_id);
     for (const auto &entry : profilingResults) {
-      txt << "Work Order: part_id="
+      txt << "{\"object\": \"work order\", \"part id\": "
           << entry.part_id
-          << " operator_id="
+          << ", \"operator id\": "
           << entry.operator_id
-          << " rebuild="
+          << ", \"query id\": "
+          << query_id
+          << ", \"rebuild\": "
           << (entry.rebuild ? "true" : "false")
-          << " start_time="
+          << ", \"start time\": "
           << entry.start_time
-          << " end_time="
+          << ", \"end time\": "
           << entry.end_time
-          << " time="
+          << ", \"time\": "
           << entry.end_time - entry.start_time
-          << " memory_bytes="
+          << ", \"memory bytes\": "
           << entry.memory_bytes
-          << " proto=\n"
-          << entry.proto.DebugString()
-          << "\n";
+          << ", \"proto\": \n\""
+          << replaceQuote(entry.proto.ShortDebugString())
+          << "\"}\n";
 
       const std::size_t workorder_start_time = entry.start_time;
       const std::size_t workorder_end_time = entry.end_time;
@@ -180,6 +192,7 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
       time_elapsed[relop_index] += (workorder_end_time - workorder_start_time);
       memory_bytes[relop_index] += entry.memory_bytes;
       overall_memory_bytes += entry.memory_bytes;
+      num_work_orders[relop_index] += 1;
     }
 
     // per operator
@@ -189,53 +202,68 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
 
       std::string opName = node.getName();
 
-      txt << "Operator: name="
+      txt << "{\"object\": \"operator\", \"name\": \""
           << opName
-          << " operator_id="
+          << "\", \"operator id\": "
           << node_index
-          << " start_time="
+          << ", \"query id\": "
+          << query_id
+          << ", \"start time\": "
           << time_start[node_index]
-          << " end_time="
+          << ", \"end time\": "
           << time_end[node_index]
-          << " overall_time="
+          << ", \"overall time\": "
           << time_end[node_index] - time_start[node_index]
-          << " memory_bytes="
+          << ", \"memory bytes\": "
           << memory_bytes[node_index]
-          << " total_time_elapsed="
-          << time_elapsed[node_index];
+          << ", \"total time elapsed\": "
+          << time_elapsed[node_index]
+          << ", \"num work orders\": "
+          << num_work_orders[node_index];
 
       // insert destination
       QueryContext::insert_destination_id insert_dest_id = node.getInsertDestinationID();
       if (insert_dest_id != QueryContext::kInvalidInsertDestinationId) {
-        txt << " insert_destination_id=" << insert_dest_id;
+        txt << ", \"insert destination id\": " << insert_dest_id;
       }
 
       // output relation
       const relation_id rel_id = node.getOutputRelationID();
       if (rel_id != -1) {
-        txt << " output_relation_id=" << rel_id;
+        txt << ", \"output_relation_id\": " << rel_id;
       }
 
       // partition info
-      txt << " input_num_partitions="
+      txt << ", \"input_num_partitions\": "
           << node.getNumPartitions()
-          << " repartition="
+          << ", \"repartition\": "
           << (node.hasRepartition() ? "true" : "false")
-          << " output_num_partitions="
+          << ", \"output num partitions\": "
           << node.getOutputNumPartitions();
 
       // edges
+      txt << ", \"edges\": [";
+      bool first = true;
       for (const auto &link : dag.getDependents(node_index)) {
-        txt << " edge=(src_node_id="
+
+        if (first) {
+          first = false;
+        } else {
+          txt << ", ";
+        }
+
+        txt << "{\"src node id\": "
             << node_index
-            << ", dst_node_id="
+            << ", \"dst node id\": "
             << link.first
-            << ", is_pipeline_breaker="
+            << ", \"is pipeline breaker\": "
             << (link.second ? "true" : "false")
-            << ")";
+            << "}";
       }
+      txt << "]";
 
       // input relation
+      txt << ", \"input relations\": [";
       const CatalogRelationSchema *input_relation = nullptr;
       std::string input_relation_info;
       switch (node_type) {
@@ -275,23 +303,33 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
               static_cast<const NestedLoopsJoinOperator&>(node);
 
           const CatalogRelation &left_input_relation = nlj_op.left_input_relation();
+          const CatalogRelation &right_input_relation = nlj_op.right_input_relation();
+
           if (!left_input_relation.isTemporary()) {
-            txt << " left_input_relation="
+            txt << "{\"input_relation\": \""
                 << left_input_relation.getName()
-                << " left_input_relation_id="
+                << "\", \"input_relation_id\": "
                 << left_input_relation.getID()
-                << " left_proto=\n"
-                << left_input_relation.getProto().DebugString();
+                << ", \"type\": "
+                << "\"left\""
+                << ", \"proto\":\n\""
+                << replaceQuote(left_input_relation.getProto().ShortDebugString())
+                << "\"}";
+            if (!right_input_relation.isTemporary()) {
+              txt << ", ";
+            }
           }
 
-          const CatalogRelation &right_input_relation = nlj_op.right_input_relation();
           if (!right_input_relation.isTemporary()) {
-            txt << " right_input_relation="
+            txt << "{\"input_relation\": \""
                 << right_input_relation.getName()
-                << " right_input_relation_id="
+                << "\", \"input_relation_id\": "
                 << right_input_relation.getID()
-                << " right_proto=\n"
-                << right_input_relation.getProto().DebugString();
+                << ", \"type\": "
+                << "\"right\""
+                << ", \"proto\":\n\""
+                << replaceQuote(right_input_relation.getProto().ShortDebugString())
+                << "\"}";
           }
           break;
         }
@@ -314,17 +352,27 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
 
           std::string input_stored_relation_names;
           std::size_t num_input_stored_relations = 0;
+          bool first = true;
           for (const auto &input_relation : union_all_op.input_relations()) {
             if (input_relation->isTemporary()) {
               continue;
             }
 
-            txt << " input_relation_"<< num_input_stored_relations << "="
+            if (first) {
+              first = false;
+            } else {
+              txt << ", ";
+            }
+
+            txt << "{input_relation\": \""
                 << input_relation->getName()
-                << " input_relation_"<< num_input_stored_relations << "_id="
+                << "\", \"input_relation_id\": "
                 << input_relation->getID()
-                << " input_relation_"<< num_input_stored_relations << "_proto=\n"
-                << input_relation->getProto().DebugString();
+                << ", \"type\": \""
+                << num_input_stored_relations
+                << "\", \"proto\":\n\""
+                << replaceQuote(input_relation->getProto().ShortDebugString())
+                << "\"}";
 
             ++num_input_stored_relations;
           }
@@ -335,16 +383,17 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
       }
 
       if (input_relation && !input_relation->isTemporary()) {
-        txt << " input_relation_info="
-            << input_relation_info
-            << " input_relation="
+        txt << "{\"input_relation\": \""
             << input_relation->getName()
-            << " input_relation_id="
+            << "\", \"input_relation_id\": "
             << input_relation->getID()
-            << " proto=\n"
-            << input_relation->getProto().DebugString();
+            << ", \"type\": \""
+            << input_relation_info
+            << "\", \"proto\":\n\""
+            << replaceQuote(input_relation->getProto().ShortDebugString())
+            << "\"}";
       }
-      txt << "\n";
+      txt << "]}\n";
     }
 
     // query overall
@@ -353,19 +402,21 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
       total_time_elapsed += time_elapsed[i];
     }
 
-    txt << "Query: start_time="
+    txt << "{\"object\": \"query\", \"query id\": "
+        << query_id
+        << ", \"start time\": "
         << overall_start_time
-        << " end_time="
+        << ", \"end time\": "
         << overall_end_time
-        << " overall_time="
+        << ", \"overall time\": "
         << overall_end_time - overall_start_time
-        << " memory_bytes="
+        << ", \"memory bytes\": "
         << overall_memory_bytes + query_manager->getQueryMemoryConsumptionBytes()
-        << " total_time_elapsed="
+        << ", \"total time elapsed\": "
         << total_time_elapsed
-        << " query_context_proto=\n"
-        << query_handle->getQueryContextProto().DebugString()
-        << "\n";
+        << ", \"query context proto\": \n\""
+        << replaceQuote(query_handle->getQueryContextProto().ShortDebugString())
+        << "\"}\n";
 
     const std::string txt_file_content = txt.str();
     const std::size_t txt_file_length = txt_file_content.length();
