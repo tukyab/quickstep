@@ -75,8 +75,8 @@ function load_data {
 
 function run_queries {
   # Runs each TPC-H query several times.
-  QSEXE="$QS $QS_ARGS_BASE $QS_ARGS_NUMA_RUN $QS_ARGS_STORAGE"
-  TOTALRUNS=5
+  QSEXE="$QS $QS_ARGS_BASE_RUN $QS_ARGS_NUMA_RUN $QS_ARGS_STORAGE"
+  TOTALRUNS=2
   queries=( 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 )
   if [ "$QUERIES" != "ALL" ]; then
     unset queries
@@ -102,6 +102,8 @@ function run_queries {
       echo "Quickstep failed on query $query, continuing to next query."
     fi
     rm -f tmp.sql
+    mv record.json json_${DATA_SIZE}g/q${query}_c${WORKERS}.json
+    rm -f record.json
   done
 }
 
