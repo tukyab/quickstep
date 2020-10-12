@@ -123,12 +123,20 @@ bool PolicyEnforcerSingleNode::admitQuery(QueryHandle *query_handle) {
 }
 
 std::string replaceQuote(std::string proto) {
-  for (size_t i = 0; i < proto.size(); ++i) {
-    if (proto[i] == '"') {
-        proto.replace(i, 1, "\'");
+  std::string ret = proto;
+  for (size_t i = 0; i < ret.size(); ++i) {
+    if (ret[i] == '\"') {
+        ret.replace(i, 1, "\'");
+    }
+    if (ret[i] == '\\') {
+        if (i+1 < ret.size()) {
+          if (ret[i+1] == '0') {
+            ret.replace(i, 1, " ");
+          }
+        }
     }
   }
-  return proto;
+  return ret;
 }
 
 void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager) {
@@ -175,7 +183,9 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
           << entry.end_time - entry.start_time
           << ", \"memory bytes\": "
           << entry.memory_bytes
-          << ", \"proto\": \n\""
+          << ", \"work id\": "
+          << entry.worker_id
+          << ", \"proto\": \""
           << replaceQuote(entry.proto.ShortDebugString())
           << "\"}\n";
 
@@ -195,10 +205,12 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
       num_work_orders[relop_index] += 1;
     }
 
+    const std::vector<std::string>& input_relations = query_handle->getQueryPlan().getInputRelations();
+
     // per operator
     for (std::size_t node_index = 0; node_index < num_nodes; ++node_index) {
       const auto &node = dag.getNodePayload(node_index);
-      const RelationalOperator::OperatorType node_type = node.getOperatorType();
+      // const RelationalOperator::OperatorType node_type = node.getOperatorType();
 
       std::string opName = node.getName();
 
@@ -263,7 +275,11 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
       txt << "]";
 
       // input relation
-      txt << ", \"input relations\": [";
+      txt << ", \"input relations\": ["
+          << input_relations[node_index]
+          << "]";
+
+      /*txt << ", \"input relations\": [";
       const CatalogRelationSchema *input_relation = nullptr;
       std::string input_relation_info;
       switch (node_type) {
@@ -312,7 +328,7 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
                 << left_input_relation.getID()
                 << ", \"type\": "
                 << "\"left\""
-                << ", \"proto\":\n\""
+                << ", \"proto\": \""
                 << replaceQuote(left_input_relation.getProto().ShortDebugString())
                 << "\"}";
             if (!right_input_relation.isTemporary()) {
@@ -327,7 +343,7 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
                 << right_input_relation.getID()
                 << ", \"type\": "
                 << "\"right\""
-                << ", \"proto\":\n\""
+                << ", \"proto\": \""
                 << replaceQuote(right_input_relation.getProto().ShortDebugString())
                 << "\"}";
           }
@@ -353,8 +369,8 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
           std::string input_stored_relation_names;
           std::size_t num_input_stored_relations = 0;
           bool first = true;
-          for (const auto &input_relation : union_all_op.input_relations()) {
-            if (input_relation->isTemporary()) {
+          for (const auto &ir : union_all_op.input_relations()) {
+            if (ir->isTemporary()) {
               continue;
             }
 
@@ -365,13 +381,13 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
             }
 
             txt << "{input_relation\": \""
-                << input_relation->getName()
+                << ir->getName()
                 << "\", \"input_relation_id\": "
-                << input_relation->getID()
+                << ir->getID()
                 << ", \"type\": \""
                 << num_input_stored_relations
-                << "\", \"proto\":\n\""
-                << replaceQuote(input_relation->getProto().ShortDebugString())
+                << "\", \"proto\": \""
+                << replaceQuote(ir->getProto().ShortDebugString())
                 << "\"}";
 
             ++num_input_stored_relations;
@@ -382,18 +398,20 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
           break;
       }
 
-      if (input_relation && !input_relation->isTemporary()) {
+      if (input_relation != nullptr && !input_relation->isTemporary()) {
         txt << "{\"input_relation\": \""
             << input_relation->getName()
             << "\", \"input_relation_id\": "
             << input_relation->getID()
             << ", \"type\": \""
             << input_relation_info
-            << "\", \"proto\":\n\""
+            << "\", \"proto\": \""
             << replaceQuote(input_relation->getProto().ShortDebugString())
             << "\"}";
       }
-      txt << "]}\n";
+      txt << "]";*/
+
+      txt << "}\n";
     }
 
     // query overall
@@ -414,7 +432,7 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
         << overall_memory_bytes + query_manager->getQueryMemoryConsumptionBytes()
         << ", \"total time elapsed\": "
         << total_time_elapsed
-        << ", \"query context proto\": \n\""
+        << ", \"query context proto\": \""
         << replaceQuote(query_handle->getQueryContextProto().ShortDebugString())
         << "\"}\n";
 

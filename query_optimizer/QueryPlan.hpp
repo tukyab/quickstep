@@ -26,6 +26,15 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "utility/DAG.hpp"
 #include "utility/Macros.hpp"
+#include "relational_operators/AggregationOperator.hpp"
+#include "relational_operators/BuildHashOperator.hpp"
+#include "relational_operators/BuildLIPFilterOperator.hpp"
+#include "relational_operators/HashJoinOperator.hpp"
+#include "relational_operators/NestedLoopsJoinOperator.hpp"
+#include "relational_operators/RelationalOperator.hpp"
+#include "relational_operators/SelectOperator.hpp"
+#include "relational_operators/SortRunGenerationOperator.hpp"
+#include "relational_operators/UnionAllOperator.hpp"
 
 namespace quickstep {
 
@@ -55,7 +64,143 @@ class QueryPlan {
   inline DAGNodeIndex addRelationalOperator(RelationalOperator *relational_operator) {
     const DAGNodeIndex node_index = dag_operators_.createNode(relational_operator);
     relational_operator->setOperatorIndex(node_index);
+    addInputRelation(relational_operator);
     return node_index;
+  }
+
+  inline void addInputRelation(RelationalOperator *relational_operator) {
+    const CatalogRelationSchema *input_relation = nullptr;
+    const RelationalOperator::OperatorType node_type = relational_operator->getOperatorType();
+    std::string input_relation_info;
+    std::string txt = "";
+    switch (node_type) {
+      case RelationalOperator::kAggregation: {
+        const AggregationOperator &aggregation_op =
+            static_cast<const AggregationOperator&>(*relational_operator);
+        input_relation = &aggregation_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kBuildHash: {
+        const BuildHashOperator &build_hash_op =
+            static_cast<const BuildHashOperator&>(*relational_operator);
+        input_relation = &build_hash_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kBuildLIPFilter: {
+        const BuildLIPFilterOperator &build_lip_filter_op =
+            static_cast<const BuildLIPFilterOperator&>(*relational_operator);
+        input_relation = &build_lip_filter_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kInnerJoin:
+      case RelationalOperator::kLeftAntiJoin:
+      case RelationalOperator::kLeftOuterJoin:
+      case RelationalOperator::kLeftSemiJoin: {
+        const HashJoinOperator &hash_join_op =
+            static_cast<const HashJoinOperator&>(*relational_operator);
+        input_relation = &hash_join_op.probe_relation();
+        input_relation_info = "probe_side";
+        break;
+      }
+      case RelationalOperator::kNestedLoopsJoin: {
+        const NestedLoopsJoinOperator &nlj_op =
+            static_cast<const NestedLoopsJoinOperator&>(*relational_operator);
+
+        const CatalogRelation &left_input_relation = nlj_op.left_input_relation();
+        const CatalogRelation &right_input_relation = nlj_op.right_input_relation();
+
+        if (!left_input_relation.isTemporary()) {
+          txt = "{\"input_relation\": \""
+              + left_input_relation.getName()
+              + "\", \"input_relation_id\": "
+              + std::to_string(left_input_relation.getID())
+              + ", \"type\": "
+              + "\"left\""
+              + ", \"proto\": \""
+              + replaceQuote(left_input_relation.getProto().ShortDebugString())
+              + "\"}";
+          if (!right_input_relation.isTemporary()) {
+            txt += ", ";
+          }
+        }
+
+        if (!right_input_relation.isTemporary()) {
+          txt += "{\"input_relation\": \""
+              + right_input_relation.getName()
+              + "\", \"input_relation_id\": "
+              + std::to_string(right_input_relation.getID())
+              + ", \"type\": "
+              + "\"right\""
+              + ", \"proto\": \""
+              + replaceQuote(right_input_relation.getProto().ShortDebugString())
+              + "\"}";
+        }
+        break;
+      }
+      case RelationalOperator::kSelect: {
+        const SelectOperator &select_op =
+            static_cast<const SelectOperator&>(*relational_operator);
+        input_relation = &select_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kSortRunGeneration: {
+        const SortRunGenerationOperator &sort_op =
+            static_cast<const SortRunGenerationOperator&>(*relational_operator);
+        input_relation = &sort_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kUnionAll: {
+        const UnionAllOperator &union_all_op = static_cast<const UnionAllOperator&>(*relational_operator);
+
+        std::string input_stored_relation_names;
+        std::size_t num_input_stored_relations = 0;
+        bool first = true;
+        for (const auto &ir : union_all_op.input_relations()) {
+          if (ir->isTemporary()) {
+            continue;
+          }
+
+          if (first) {
+            first = false;
+          } else {
+            txt += ", ";
+          }
+
+          txt += "{input_relation\": \""
+              + ir->getName()
+              + "\", \"input_relation_id\": "
+              + std::to_string(ir->getID())
+              + ", \"type\": \""
+              + std::to_string(num_input_stored_relations)
+              + "\", \"proto\": \""
+              + replaceQuote(ir->getProto().ShortDebugString())
+              + "\"}";
+
+          ++num_input_stored_relations;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    if (input_relation != nullptr && !input_relation->isTemporary()) {
+      txt = "{\"input_relation\": \""
+          + input_relation->getName()
+          + "\", \"input_relation_id\": "
+          + std::to_string(input_relation->getID())
+          + ", \"type\": \""
+          + input_relation_info
+          + "\", \"proto\": \""
+          + replaceQuote(input_relation->getProto().ShortDebugString())
+          + "\"}";
+    }
+    input_relations_.push_back(txt);
   }
 
   /**
@@ -149,12 +294,34 @@ class QueryPlan {
     return &dag_operators_;
   }
 
+  const std::vector<std::string>& getInputRelations() const {
+    return input_relations_;
+  }
+
  private:
   // A false value of the second template argument indicates that the
   // link between two RelationalOperators is not a pipeline breaker.
   // while a true value indicates that the link is a pipeline
   // breaker. Streamed data won't move through pipeline breaker links.
   DAG<RelationalOperator, bool> dag_operators_;
+  std::vector<std::string> input_relations_;
+
+  std::string replaceQuote(std::string proto) {
+    std::string ret = proto;
+    for (size_t i = 0; i < ret.size(); ++i) {
+      if (ret[i] == '\"') {
+          ret.replace(i, 1, "\'");
+      }
+      if (ret[i] == '\\') {
+          if (i+1 < ret.size()) {
+            if (ret[i+1] == '0') {
+              ret.replace(i, 1, " ");
+            }
+          }
+      }
+    }
+    return ret;
+  }
 
   DISALLOW_COPY_AND_ASSIGN(QueryPlan);
 };
