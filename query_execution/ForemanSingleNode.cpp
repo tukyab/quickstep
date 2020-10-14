@@ -246,4 +246,26 @@ void ForemanSingleNode::printWorkOrderProfilingResults(const std::size_t query_i
   }
 }
 
+void ForemanSingleNode::printQueryProfilingResults(const std::size_t query_id,
+                                                       std::FILE *out) const {
+  if (!policy_enforcer_->hasProfilingResults(query_id)) {
+    fprintf(out,
+            "Query %lu Time: missing\n",
+            query_id);
+    return;
+  }
+  const std::vector<WorkOrderTimeEntry> &recorded_times =
+      policy_enforcer_->getProfilingResults(query_id);
+  std::size_t overall_start_time = std::numeric_limits<std::size_t>::max();
+  std::size_t overall_end_time = 0;
+  for (auto workorder_entry : recorded_times) {
+    overall_start_time = std::min(overall_start_time, workorder_entry.start_time);
+    overall_end_time = std::max(overall_end_time, workorder_entry.end_time);
+  }
+  fprintf(out,
+          "Query %lu Time: %lu microseconds\n",
+          query_id,
+          overall_end_time - overall_start_time);  // Time.
+}
+
 }  // namespace quickstep

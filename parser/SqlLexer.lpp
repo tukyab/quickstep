@@ -85,6 +85,7 @@ class ParseStatementInsertSelection;
 class ParseStatementSetOperation;
 class ParseStatementQuit;
 class ParseStatementUpdate;
+class ParseStatementSleep;
 class ParseSubqueryExpression;
 class ParseSubqueryTableReference;
 class ParseTableReference;
@@ -267,6 +268,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "second"           return TOKEN_SECOND;
   "select"           return TOKEN_SELECT;
   "set"              return TOKEN_SET;
+  "sleep"            return TOKEN_SLEEP;
   "sma"              return TOKEN_SMA;
   "smallint"         return TOKEN_SMALLINT;
   "stderr"           return TOKEN_STDERR;

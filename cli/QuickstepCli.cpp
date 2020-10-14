@@ -27,6 +27,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <thread>
 
 #include "cli/CliConfig.h"  // For QUICKSTEP_ENABLE_NETWORK_CLI, QUICKSTEP_ENABLE_GOOGLE_PROFILER.
 
@@ -114,6 +115,7 @@ using quickstep::kAdmitRequestMessage;
 using quickstep::kCatalogFilename;
 using quickstep::kPoisonMessage;
 using quickstep::kWorkloadCompletionMessage;
+using quickstep::ParseStatementSleep;
 
 using tmb::client_id;
 
@@ -335,6 +337,13 @@ int main(int argc, char* argv[]) {
           if (statement.getStatementType() == ParseStatement::kQuit) {
             quitting = true;
             break;
+          } else if (statement.getStatementType() == ParseStatement::kSleep) {
+            const ParseStatementSleep &sleep_statement =
+                static_cast<const ParseStatementSleep&>(statement);
+            int duration = sleep_statement.duration();
+            fprintf(io_handle->out(), "Sleep %d ms\n", duration);
+            std::this_thread::sleep_for(std::chrono::milliseconds(duration));
+            break;
           } else if (statement.getStatementType() == ParseStatement::kCommand) {
             try {
               quickstep::cli::executeCommand(
@@ -452,6 +461,8 @@ int main(int argc, char* argv[]) {
     }
   } else {
     std::vector<QueryHandle*> query_handles;
+    std::chrono::time_point<std::chrono::steady_clock> workload_start, workload_end;
+    workload_start = std::chrono::steady_clock::now();
     for (;;) {
       bool end_of_input = false;
       // A parse error should reset the parser. This is because the thrown quickstep
@@ -483,13 +494,6 @@ int main(int argc, char* argv[]) {
                               result.parsed_statement->getStatementType() ==
                                   ParseStatement::kQuit))) {
           if (!query_handles.empty()) {
-            for (std::size_t i = 0; i < query_handles.size(); ++i) {
-              QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
-                  main_thread_client_id,
-                  foreman.getBusClientID(),
-                  query_handles[i],
-                  &bus);
-            }
             try {
               QueryExecutionUtil::ReceiveQueryCompletionMessage(
                   main_thread_client_id, &bus);
@@ -515,8 +519,7 @@ int main(int argc, char* argv[]) {
               if (quickstep::FLAGS_profile_and_report_workorder_perf) {
                 // TODO(harshad) - Allow user specified file instead of stdout.
                 for (std::size_t i = 0; i < query_handles.size(); ++i) {
-                  foreman.printWorkOrderProfilingResults(
-                      query_handles[i]->query_id(), stdout);
+                  foreman.printQueryProfilingResults(i, stdout);
                 }
               }
             } catch (const std::exception &e) {
@@ -528,38 +531,63 @@ int main(int argc, char* argv[]) {
           break;
         } else if (result.condition == ParseResult::kSuccess) {
           const ParseStatement &statement = *result.parsed_statement;
-          if (statement.getStatementType() == ParseStatement::kCommand) {
-            LOG(INFO) << "Only select queries are accepted in the workload";
+
+          if (statement.getStatementType() == ParseStatement::kQuit) {
+            end_of_input = true;
+            continue;
+          }
+
+          if (statement.getStatementType() == ParseStatement::kSleep) {
+            const ParseStatementSleep &sleep_statement =
+                static_cast<const ParseStatementSleep&>(statement);
+            int duration = sleep_statement.duration();
+            fprintf(io_handle->out(), "Sleep %d ms\n", duration);
+            std::this_thread::sleep_for(std::chrono::milliseconds(duration));
             break;
           }
 
-          std::unique_ptr<QueryHandle> query_handle;
+          if (statement.getStatementType() == ParseStatement::kCommand) {
+            LOG(INFO) << "Only queries and sleeps are accepted in the workload";
+            break;
+          }
+
           try {
             const std::size_t query_id = query_processor->query_id();
-            query_handle = std::make_unique<QueryHandle>(query_id,
-                                                         main_thread_client_id,
-                                                         statement.getPriority());
+            auto query_handle = std::make_unique<QueryHandle>(query_id,
+                                                              main_thread_client_id,
+                                                              statement.getPriority());
             query_processor->generateQueryHandle(statement, query_handle.get());
+            DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+
+            QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+                main_thread_client_id,
+                foreman.getBusClientID(),
+                query_handle.get(),
+                &bus);
+            query_handles.push_back(query_handle.release());
+            break;
           } catch (const quickstep::SqlError &sql_error) {
             fprintf(io_handle->err(), "%s",
                     sql_error.formatMessage(*command_string).c_str());
             reset_parser = true;
             break;
           }
-
-          DCHECK(query_handle->getQueryPlanMutable() != nullptr);
-          query_handles.push_back(query_handle.release());
-          break;
         } else if (result.condition == ParseResult::kError) {
           fprintf(io_handle->err(), "%s", result.error_message.c_str());
           reset_parser = true;
           break;
         } else {
-          LOG(FATAL) << "Unhandled case";
+          LOG(FATAL) << "Unhandled case " << result.condition;
           break;
         }
       }
+
       if (end_of_input) {
+        workload_end = std::chrono::steady_clock::now();
+        std::chrono::duration<double, std::milli> w_time_ms = workload_end - workload_start;
+        fprintf(io_handle->out(), "Workload Time: %s ms\n",
+               quickstep::DoubleToStringWithSignificantDigits(
+                   w_time_ms.count(), 3).c_str());
         break;
       } else if (reset_parser) {
         parser_wrapper.reset(new SqlParserWrapper());

@@ -77,6 +77,9 @@ class ForemanSingleNode final : public ForemanBase {
   void printWorkOrderProfilingResults(const std::size_t query_id,
                                       std::FILE *out) const override;
 
+  void printQueryProfilingResults(const std::size_t query_id,
+                                      std::FILE *out) const override;
+
  protected:
   void run() override;
 

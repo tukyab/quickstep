@@ -188,6 +188,7 @@ typedef void* yyscan_t;
   quickstep::ParseBlockProperties *block_properties_;
   quickstep::ParseStatementDropTable *drop_table_statement_;
   quickstep::ParseStatementQuit *quit_statement_;
+  quickstep::ParseStatementSleep *sleep_statement_;
 
   const quickstep::Comparison *comparison_;
   const quickstep::UnaryOperation *unary_operation_;
@@ -340,6 +341,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_SECOND;
 %token TOKEN_SELECT;
 %token TOKEN_SET;
+%token TOKEN_SLEEP;
 %token TOKEN_SMA;
 %token TOKEN_SMALLINT;
 %token TOKEN_STDERR;
@@ -541,6 +543,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <quit_statement_>
   quit_statement
 
+%type <sleep_statement_>
+  sleep_statement
+
 %type <string_list_>
   name_commalist
 
@@ -696,6 +701,15 @@ sql_statement:
   }
   | update_statement {
     $$ = $1;
+  }
+  | sleep_statement {
+    $$ = $1;
+  };
+
+/* Sleep statement */
+sleep_statement:
+  TOKEN_SLEEP TOKEN_UNSIGNED_NUMVAL {
+    $$ = new quickstep::ParseStatementSleep(@1.first_line, @1.first_column, $2);
   };
 
 /* Quit statement */

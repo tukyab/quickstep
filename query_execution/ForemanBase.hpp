@@ -77,6 +77,9 @@ class ForemanBase : public Thread {
   virtual void printWorkOrderProfilingResults(const std::size_t query_id,
                                               std::FILE *out) const = 0;
 
+  virtual void printQueryProfilingResults(const std::size_t query_id,
+                                              std::FILE *out) const = 0;
+
   /**
    * @brief Get the results of profiling individual work orders for a given
    *        query.

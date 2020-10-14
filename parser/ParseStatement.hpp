@@ -69,7 +69,8 @@ class ParseStatement : public ParseTreeNode {
     kInsert,
     kQuit,
     kSetOperation,
-    kUpdate
+    kUpdate,
+    kSleep
   };
 
   /**
@@ -103,6 +104,48 @@ class ParseStatement : public ParseTreeNode {
  private:
   DISALLOW_COPY_AND_ASSIGN(ParseStatement);
 };
+
+class ParseStatementSleep : public ParseStatement {
+ public:
+  ParseStatementSleep(const int line_number,
+                            const int column_number,
+                            NumericParseLiteralValue *duration)
+      : ParseStatement(line_number, column_number),
+        duration_(duration) {
+  }
+
+  ~ParseStatementSleep() override {
+  }
+
+  StatementType getStatementType() const override {
+    return kSleep;
+  }
+
+  std::string getName() const override { return "SleepStatement"; }
+
+  const int duration() const {
+    return duration_.get()->long_value();
+  }
+
+protected:
+ void getFieldStringItems(
+     std::vector<std::string> *inline_field_names,
+     std::vector<std::string> *inline_field_values,
+     std::vector<std::string> *non_container_child_field_names,
+     std::vector<const ParseTreeNode*> *non_container_child_fields,
+     std::vector<std::string> *container_child_field_names,
+     std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
+       non_container_child_field_names->push_back("");
+       non_container_child_fields->push_back(duration_.get());
+ }
+
+
+ private:
+  std::unique_ptr<NumericParseLiteralValue> duration_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseStatementSleep);
+};
+
 
 /**
  * @brief The parsed representation of a CREATE TABLE statement.
