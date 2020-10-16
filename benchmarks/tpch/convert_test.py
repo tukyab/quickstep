@@ -30,8 +30,8 @@ test = np.load("/flash2/tenzin/test.npy")
 last = 0
 f = open("test.sql", "w")
 for q in test:
-    time = q[0]
-    sleep = last - time
+    time = int(q[0])
+    sleep = time - last
     last = time
     if sleep > 0:
         f.write("sleep " + str(sleep) + ";")
