@@ -34,9 +34,9 @@ for q in test:
     sleep = time - last
     last = time
     if sleep > 0:
-        f.write("sleep " + str(sleep) + ";")
+        f.write("sleep " + str(sleep) + ";\n")
 
     query_num = int(q[2])
-    f.write(queries[query_num - 1])
+    f.write(queries[query_num - 1] + "\n")
 
 f.close()
