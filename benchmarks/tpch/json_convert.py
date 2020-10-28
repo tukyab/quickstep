@@ -12,8 +12,7 @@ for q in range(len(queries)):
     adj_dict = {}
     num_operators = 0
     for line in lines:
-        l = fix_esc(line);
-        data = json.loads(l)
+        data = json.loads(line)
         if int(data["query id"]) == 0 and data["object"] == "operator":
             num_operators += 1
             edges = []
