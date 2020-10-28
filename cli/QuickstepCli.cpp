@@ -495,6 +495,7 @@ int main(int argc, char* argv[]) {
                                   ParseStatement::kQuit))) {
           if (!query_handles.empty()) {
             try {
+              fprintf(io_handle->out(), "Waiting for completion.\n");
               QueryExecutionUtil::ReceiveQueryCompletionMessage(
                   main_thread_client_id, &bus);
 
@@ -553,6 +554,7 @@ int main(int argc, char* argv[]) {
 
           try {
             const std::size_t query_id = query_processor->query_id();
+            fprintf(io_handle->out(), "Query %llu\n", query_id);
             auto query_handle = std::make_unique<QueryHandle>(query_id,
                                                               main_thread_client_id,
                                                               statement.getPriority());
