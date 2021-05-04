@@ -47,8 +47,8 @@ data_size = 2
 queries = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22"]
 cores = [2,5,10,30]
 query = 0
-operator = []
 for q in range(len(queries)):
+    operator = []
     with open("/ssd1/tenzin/json_" + str(data_size) + "g/q" + queries[q] + "_c2.json", "r") as f:
         lines = f.readlines()
 
@@ -80,7 +80,7 @@ for q in range(len(queries)):
         for i in adj_dict[op]:
             children[i] = 1
         adj_mat.append(children)
-        
+
         children2 = [True]*num_operators
         for i in edge_dict[op]:
             children2[i[0]] = i[1]
