@@ -29,19 +29,19 @@ function load_data {
       elif [[ $tblfile == *"customer"* ]]
       then
         TBL="customer"
-      elif [[ $tblfile == *"part."* ]]
+      elif [[ $tblfile == *"part"* ]]
       then
         TBL="part"
       elif [[ $tblfile == *"lineorder"* ]]
       then
         TBL="lineorder"
-      elif [[ $tblfile == *"date"* ]]
+      elif [[ $tblfile == *"datetable"* ]]
       then
-        TBL="lineitem"
+        TBL="datetable"
       fi
 
       echo Loading $TBL from file: $tblfile;
-      if ! echo "COPY $TBL FROM '$tblfile' WITH (DELIMITER '|');" | $QSEXE;
+      if ! echo "COPY $TBL FROM '$tblfile' WITH (DELIMITER ',');" | $QSEXE;
       then
         echo "Quickstep load failed.";
         exit 1;
@@ -58,7 +58,7 @@ function load_data {
     eval $DBSIZE
 
   else
-    echo "TPC-H data folder $TPCH_DATA_PATH not found, quitting"
+    echo "data folder $DATA_PATH not found, quitting"
     exit
   fi
 }

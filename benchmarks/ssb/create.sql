@@ -1,11 +1,11 @@
-CREATE TABLE date (
+CREATE TABLE datetable (
   d_datekey INT NOT NULL,
   d_date CHAR(25) NOT NULL,
   d_dayofweek CHAR(10) NOT NULL,
   d_month CHAR(10) NOT NULL,
   d_year INT NOT NULL,
   d_yearmonthnum INT NOT NULL,
-  d_yearmonth CHAR(10) NOT NULL,
+  d_yearmonth INT NOT NULL,
   d_daynuminweek INT NOT NULL,
   d_daynuminmonth INT NOT NULL,
   d_monthnuminyear INT NOT NULL,
@@ -15,7 +15,8 @@ CREATE TABLE date (
   d_lastdayinmonthfl CHAR(1) NOT NULL,
   d_holidayfl CHAR(1) NOT NULL,
   d_weekdayfl CHAR(1) NOT NULL,
-  d_weekendfl CHAR(1) NOT NULL
+  d_weekendfl CHAR(1) NOT NULL,
+  d_comment VARCHAR(101) NOT NULL
 ) WITH BLOCKPROPERTIES (
   TYPE split_rowstore,
   BLOCKSIZEMB 4);
@@ -27,7 +28,8 @@ CREATE TABLE supplier (
   s_city CHAR(25) NOT NULL,
   s_nation CHAR(25) NOT NULL,
   s_region CHAR(25) NOT NULL,
-  s_phone CHAR(15) NOT NULL
+  s_phone CHAR(15) NOT NULL,
+  s_comment VARCHAR(101) NOT NULL
 ) WITH BLOCKPROPERTIES (
   TYPE split_rowstore,
   BLOCKSIZEMB 4);
@@ -40,7 +42,8 @@ CREATE TABLE customer (
   c_nation CHAR(25) NOT NULL,
   c_region CHAR(25) NOT NULL,
   c_phone CHAR(15) NOT NULL,
-  c_mktsegment CHAR(10) NOT NULL
+  c_mktsegment CHAR(10) NOT NULL,
+  c_comment VARCHAR(101) NOT NULL
 ) WITH BLOCKPROPERTIES (
   TYPE split_rowstore,
   BLOCKSIZEMB 4);
@@ -55,6 +58,7 @@ CREATE TABLE part (
   p_type VARCHAR(25) NOT NULL,
   p_size INT NOT NULL,
   p_container CHAR(10) NOT NULL,
+  p_comment VARCHAR(101) NOT NULL
 ) WITH BLOCKPROPERTIES (
   TYPE split_rowstore,
   BLOCKSIZEMB 4);
@@ -65,7 +69,7 @@ CREATE TABLE lineorder (
   lo_custkey INT NOT NULL,
   lo_partkey INT NOT NULL,
   lo_suppkey INT NOT NULL,
-  lo_orderdate DATE NOT NULL,
+  lo_orderdate INT NOT NULL,
   lo_orderpriority CHAR(15) NOT NULL,
   lo_shippriority INT NOT NULL,
   lo_quantity DECIMAL NOT NULL,
@@ -75,8 +79,9 @@ CREATE TABLE lineorder (
   lo_revenue DECIMAL NOT NULL,
   lo_supplycost DECIMAL NOT NULL,
   lo_tax DECIMAL NOT NULL,
-  lo_commitdate DATE NOT NULL,
-  lo_shipmode CHAR(10) NOT NULL
+  lo_commitdate INT NOT NULL,
+  lo_shipmode CHAR(10) NOT NULL,
+  lo_comment VARCHAR(101) NOT NULL
 ) WITH BLOCKPROPERTIES (
   TYPE compressed_columnstore,
   SORT lo_orderkey,

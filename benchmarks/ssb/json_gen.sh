@@ -17,6 +17,6 @@ do
     DATA_PATH=/ssd1/tenzin/ssb_${DATA_SIZE}" > q.cfg
     cat q.cfg
 
-	  ./run-benchmark2.sh q.cfg
+	  ./run-benchmark.sh q.cfg
 	done
 done
