@@ -1,7 +1,7 @@
 /*
  * Sccsid:     @(#)dss.h	2.1.8.5
  *
- * general definitions and control information for the DSS code 
+ * general definitions and control information for the DSS code
  * generator; if it controls the data set, it's here
  */
 #ifndef DSS_H
@@ -133,8 +133,8 @@ typedef struct {
 } holiday;
 
 
-#endif	
-     
+#endif
+
 
 typedef struct
 {
@@ -151,7 +151,7 @@ typedef struct
 }         distribution;
 
 /*
- * some handy access functions 
+ * some handy access functions
  */
 #define DIST_SIZE(d)		d->count
 #define DIST_MEMBER(d, i)	((set_member *)((d)->list + i))->text
@@ -279,7 +279,7 @@ EXTERN int delete_segments;
 EXTERN int insert_orders_segment;
 EXTERN int insert_lineitem_segment;
 EXTERN int delete_segment;
- 
+
 
 #ifndef DECLARER
 extern tdef tdefs[];
@@ -334,7 +334,7 @@ extern tdef tdefs[];
 #define  S_NAME_FMT "%s%09ld"
 #define  S_ABAL_MIN   -99999
 #define  S_ABAL_MAX    999999
-#define  S_CMNT_MAX    101      
+#define  S_CMNT_MAX    101
 #define  S_CMNT_BBB    10       /* number of BBB comments/SF */
 #define  BBB_DEADBEATS 50       /* % that are complaints */
 #define  BBB_BASE  "Customer "
@@ -446,14 +446,14 @@ extern tdef tdefs[];
 			}
 #define FREE_HUGE(v)	free(v)
 #ifdef SUPPORT_64BITS
-#define LONG2HUGE(src, dst)		*dst = (DSS_HUGE)src	
+#define LONG2HUGE(src, dst)		*dst = (DSS_HUGE)src
 #define HUGE2LONG(src, dst)		*dst = (long)src
-#define HUGE_SET(src, dst)		*dst = *src	
-#define HUGE_MUL(op1, op2)		*op1 *= op2	
-#define HUGE_DIV(op1, op2)		*op1 /= op2	
-#define HUGE_ADD(op1, op2, dst)	*dst = *op1 + op2	
-#define HUGE_SUB(op1, op2, dst)	*dst = *op1 - op2	
-#define HUGE_MOD(op1, op2)		*op1 % op2	
+#define HUGE_SET(src, dst)		*dst = *src
+#define HUGE_MUL(op1, op2)		*op1 *= op2
+#define HUGE_DIV(op1, op2)		*op1 /= op2
+#define HUGE_ADD(op1, op2, dst)	*dst = *op1 + op2
+#define HUGE_SUB(op1, op2, dst)	*dst = *op1 - op2
+#define HUGE_MOD(op1, op2)		*op1 % op2
 #define HUGE_CMP(op1, op2)		(*op1 == *op2)?0:(*op1 < *op2)-1:1
 #else
 #define LONG2HUGE(src, dst)		{*dst = src; *(dst + 1) = 0;}
@@ -502,6 +502,7 @@ extern tdef tdefs[];
 #define DT_KEY		4
 #define DT_MONEY	5
 #define DT_CHR		6
+#define DT_DATE		7
 
 int dbg_print(int dt, FILE *tgt, void *data, int len, int eol);
 #define PR_STR(f, str, len)		dbg_print(DT_STR, f, (void *)str, len, 1)
@@ -512,6 +513,7 @@ int dbg_print(int dt, FILE *tgt, void *data, int len, int eol);
 #define PR_KEY(f, str) 			dbg_print(DT_KEY, f, (void *)str, 0, -1)
 #define PR_MONEY(f, str) 		dbg_print(DT_MONEY, f, (void *)str, 0, 1)
 #define PR_CHR(f, str)	 		dbg_print(DT_CHR, f, (void *)str, 0, 1)
+#define PR_D(f, str)	 		dbg_print(DT_DATE, f, (void *)str, 0, 1)
 #define  PR_STRT(fp)   /* any line prep for a record goes here */
 #define  PR_END(fp)    fprintf(fp, "\n")   /* finish the record here */
 
@@ -540,8 +542,8 @@ sprintf(tgt, "19%02d-%02d-%02d", yr, mn, dy)
 /* assume float is a 64 bit quantity */
 #define  VRF_MONEY(t,d)	tdefs[t].vtotal = *((long *)&d) + *((long *)(&d + 1))
 #define  VRF_CHR(t,d)	tdefs[t].vtotal += d
-#define  VRF_STRT(t)  
-#define  VRF_END(t)  
+#define  VRF_STRT(t)
+#define  VRF_END(t)
 
 /*********** distribuitons currently defined *************/
 #define  UNIFORM   0
@@ -585,26 +587,9 @@ sprintf(tgt, "19%02d-%02d-%02d", yr, mn, dy)
 #define  N_CMNT_SD 41
 #define  R_CMNT_SD 42
 #define  O_LCNT_SD 43
-#define  BBB_JNK_SD    44          
-#define  BBB_TYPE_SD   45         
-#define  BBB_CMNT_SD   46         
-#define  BBB_OFFSET_SD 47         
+#define  BBB_JNK_SD    44
+#define  BBB_TYPE_SD   45
+#define  BBB_CMNT_SD   46
+#define  BBB_OFFSET_SD 47
 
 #endif            /* DSS_H */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
