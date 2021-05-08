@@ -5,21 +5,25 @@
  */
 #define DECLARER
 
+#include "config.h"
 #include <stdio.h>
 #include <string.h>
-#if (defined(_POSIX_)||!defined(WIN32))
-/*
-#include <unistd.h>
-*/
-#else
-#include "process.h"
-#endif /* WIN32 */
 #include <ctype.h>
 #include <time.h>
-#include "config.h"
+
+#if defined(HAVE_UNISTD_H)
+#include <unistd.h>
+#elif defined(HAVE_PROCESS_H)
+#include <process.h>
+#endif /* defined(HAVE_UNISTD_H) */
+
 #include "dss.h"
 #include "tpcd.h"
 #include "permute.h"
+
+#if (!defined(STDLIB_HAS_GETOPT) && defined(HAVE_GETOPT_H))
+#include <getopt.h>
+#endif
 
 
 #define LINE_SIZE 512
@@ -250,7 +254,7 @@ printf("Copyright %s %s\n", TPC, C_DATES);
 printf("USAGE: %s <options> [ queries ]\n", prog);
 printf("Options:\n");
 printf("\t-a\t\t-- use ANSI semantics.\n");
-printf("\t-b <str>\t-- load distributions from <str>\n");
+printf("\t-b <str>\t-- load distributions from file <str> (default: " DIST_DFLT ")\n");
 printf("\t-c\t\t-- retain comments found in template.\n");
 printf("\t-d\t\t-- use default substitution values.\n");
 printf("\t-h\t\t-- print this usage summary.\n");
@@ -385,7 +389,7 @@ setup(void)
 }
 
 
-main(int ac, char **av)
+int main(int ac, char **av)
 {
     int i;
     FILE *ifp;
@@ -406,7 +410,12 @@ main(int ac, char **av)
     if (!(flags & DFLT))        /* perturb the RNG */
 	    {
 	    if (!(flags & SEED))
-                rndm = (long)((unsigned)time(NULL) * DSS_PROC);
+            {
+			/* Note:
+			 * The multiplication by the process ID is a change in ssb-dbgen relative to TPC-H dbgen 
+			 */
+            rndm = (long)((unsigned)time(NULL) * DSS_PROC);
+            }
 		if (rndm < 0)
 			rndm += 2147483647;
 		Seed[0].value = rndm;
@@ -433,14 +442,14 @@ main(int ac, char **av)
             for (i=optind; i < ac; i++)
                 {
                 char qname[10];
-                sprintf(qname, "%d", SEQUENCE(snum, atoi(av[i])));
+                sprintf(qname, "%ld", SEQUENCE(snum, atoi(av[i])));
                 qsub(qname, flags);
                 }
         else
             for (i=1; i <= QUERIES_PER_SET; i++)
                 {
                 char qname[10];
-                sprintf(qname, "%d", SEQUENCE(snum, i));
+                sprintf(qname, "%ld", SEQUENCE(snum, i));
                 qsub(qname, flags);
                 }
     else

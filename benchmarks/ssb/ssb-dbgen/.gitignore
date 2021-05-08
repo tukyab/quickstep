@@ -1,0 +1,42 @@
+
+# CMake-generated
+# -------------------------------------
+cmake_install.cmake
+CMakeFiles/
+CMakeCache.txt
+Makefile
+makefile
+config.h
+
+# Build artifacts
+# -------------------------------------
+*.o
+qgen
+dbgen
+
+# Generated tables
+# -------------------------------------
+*.tbl
+
+# Temporary files of common editors
+# -------------------------------------
+*.bkp
+*.swp
+*~
+\#\#*
+
+# Profiler output
+# -------------------------------------
+gmon.out
+
+# IDE files (Eclipse, IntelliJ IDEA)
+# -------------------------------------
+.cproject
+.project
+.idea/
+
+# Patch-related
+# -------------------------------------
+*.diff
+*.rej
+*.orig

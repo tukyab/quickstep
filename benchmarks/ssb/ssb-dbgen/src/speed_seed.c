@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "dss.h"
+#include "life_noise.h"
 
 /*  _tal long RandSeed = "Random^SeedFromTimestamp" (void); */
 
@@ -22,8 +23,8 @@ extern seed_t Seed[];
 /* The book says that this will work if MAXINT for the type you choose    */
 /* is at least 2**46  - 1, so 64 bits is more than you *really* need      */
 
-static DSS_HUGE Multiplier = 16807;      /* or whatever nonstandard */
-static DSS_HUGE Modulus =  2147483647;   /* trick you use to get 64 bit int */
+static int Multiplier = 16807;        /* or whatever nonstandard */
+static long Modulus =  2147483647L;   /* trick you use to get 64 bit int */
 
 /* Advances value of Seed after N applications of the random number generator
    with multiplier Mult and given Modulus.
@@ -91,7 +92,14 @@ typedef signed long RND;
 typedef unsigned long URND;
 
 #define FatalError(e)  F_FatalError( (e), __FILE__, __LINE__ )
-void F_FatalError( int x, char *y, int z ) {fprintf(stderr, "Bang!\n");}
+
+void F_FatalError( int x, char *y, int z )
+{
+    UNUSED(x);
+    UNUSED(y);
+    UNUSED(z);
+    fprintf(stderr, "Bang!\n");
+}
 
 
 /* Prototypes */
@@ -235,6 +243,7 @@ sd_part(int child, long skip_count)
 {
    int i;
  
+   UNUSED(child);
    for (i=P_MFG_SD; i<= P_CNTR_SD; i++)
        ADVANCE_STREAM(i, skip_count);
  
@@ -269,6 +278,7 @@ sd_line(int child, long skip_count)
 long 
 sd_order(int child, long skip_count)        
 {
+   UNUSED(child);
    ADVANCE_STREAM(O_LCNT_SD, skip_count);
    ADVANCE_STREAM(O_CKEY_SD, skip_count);
    FAKE_V_STR(O_CMNT_LEN, O_CMNT_SD, skip_count);
@@ -285,6 +295,7 @@ sd_psupp(int child, long skip_count)
 	{
 	int j;
 	
+	UNUSED(child);
 	for (j=0; j < SUPP_PER_PART; j++)
 		{
 		ADVANCE_STREAM(PS_QTY_SD, skip_count);
@@ -298,7 +309,7 @@ sd_psupp(int child, long skip_count)
 long 
 sd_cust(int child, long skip_count)
 {
-   
+   UNUSED(child);
    FAKE_V_STR(C_ADDR_LEN, C_ADDR_SD, skip_count);
    FAKE_V_STR(C_CMNT_LEN, C_CMNT_SD, skip_count);
    ADVANCE_STREAM(C_NTRG_SD, skip_count);
@@ -311,6 +322,7 @@ sd_cust(int child, long skip_count)
 long
 sd_supp(int child, long skip_count)
 {
+   UNUSED(child);
    ADVANCE_STREAM(S_NTRG_SD, skip_count);
    ADVANCE_STREAM(S_PHNE_SD, 3L * skip_count);
    ADVANCE_STREAM(S_ABAL_SD, skip_count);

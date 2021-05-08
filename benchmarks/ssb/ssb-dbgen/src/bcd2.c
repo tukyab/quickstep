@@ -2,15 +2,6 @@
 /*
  * bcd.c: conversion routines for multi-byte arithmetic
  *
- * defined routines:
- * bin_bcd2(long binary, long *low_res, long *high_res)
- * bcd2_bin(long *dest, long bcd)
- * bcd2_add(long *bcd_low, long *bcd_high, long addend)
- * bcd2_sub(long *bcd_low, long *bcd_high, long subend)
- * bcd2_mul(long *bcd_low, long *bcd_high, long multiplier)
- * bcd2_div(long *bcd_low, long *bcd_high, long divisor)
- * long bcd2_mod(long *bcd_low, long *bcd_high, long modulo)
- * long bcd2_cmp(long *bcd_low, long *bcd_high, long compare)
  */
 #include <stdio.h>
 #include "bcd2.h"	/* for function prototypes */
@@ -34,16 +25,17 @@
         *low = (*low & (0xFFFFFFF ^ (0xF << (4 * (num))))); \
         *low |= (value << (4 * (num))); \
         }
+
 int 
-bin_bcd2(long binary, long *low_res, long *high_res)
+bin_bcd2(DSS_HUGE binary, DSS_HUGE *low_res, DSS_HUGE *high_res)
 {
     char number[15],
          *current;
     int count;  
-    long *dest;
+    DSS_HUGE *dest;
 
 	*low_res = *high_res = 0;
-    sprintf(number, "%014ld", binary);
+    sprintf(number, "%014" HUGE_FORMAT_SPECIFIER, binary);
     for (current = number, count=13; *current; current++, count--)
         {
         dest = (count < DIGITS_PER_LONG)?low_res:high_res;
@@ -54,10 +46,10 @@ bin_bcd2(long binary, long *low_res, long *high_res)
 }
 
 int
-bcd2_bin(long *dest, long bcd)
+bcd2_bin(DSS_HUGE *dest, DSS_HUGE bcd)
 {
     int count;
-    long mask;
+    DSS_HUGE mask;
          
     count = DIGITS_PER_LONG - 1;
     mask = 0xF000000;
@@ -72,10 +64,10 @@ bcd2_bin(long *dest, long bcd)
     return(0);
 }
 
-int
-bcd2_add(long *bcd_low, long *bcd_high, long addend)
+DSS_HUGE
+bcd2_add(DSS_HUGE *bcd_low, DSS_HUGE *bcd_high, DSS_HUGE addend)
 {
-    long tmp_lo, tmp_hi, carry, res;
+    DSS_HUGE tmp_lo, tmp_hi, carry, res;
     int digit;
 
     bin_bcd2(addend, &tmp_lo, &tmp_hi);
@@ -92,10 +84,10 @@ bcd2_add(long *bcd_low, long *bcd_high, long addend)
     return(carry);
 }
 
-int
-bcd2_sub(long *bcd_low, long *bcd_high, long subend)
+DSS_HUGE
+bcd2_sub(DSS_HUGE *bcd_low, DSS_HUGE *bcd_high, DSS_HUGE subend)
 {
-    long tmp_lo, tmp_hi, carry, res;
+    DSS_HUGE tmp_lo, tmp_hi, carry, res;
     int digit;
 
     bin_bcd2(subend, &tmp_lo, &tmp_hi);
@@ -115,11 +107,12 @@ bcd2_sub(long *bcd_low, long *bcd_high, long subend)
     return(carry);
 }
 
-int
-bcd2_mul(long *bcd_low, long *bcd_high, long multiplier)
+DSS_HUGE
+bcd2_mul(DSS_HUGE *bcd_low, DSS_HUGE *bcd_high, DSS_HUGE multiplier)
 {
-    long tmp_lo, tmp_hi, carry, m_lo, m_hi, m1, m2;
-    int udigit, ldigit, res;
+    DSS_HUGE tmp_lo, tmp_hi, carry, m_lo, m_hi, m1, m2;
+    int udigit, ldigit;
+	DSS_HUGE res;
 
     tmp_lo = *bcd_low;
     tmp_hi = *bcd_high;
@@ -144,16 +137,18 @@ bcd2_mul(long *bcd_low, long *bcd_high, long multiplier)
             carry = res / 10;
             res %= 10;
             if (udigit + ldigit < 14)
+                {
                 SET_DIGIT(res, udigit + ldigit, bcd_low, bcd_high);
+                }
             }
         }
     return(carry);
 }
 
-int
-bcd2_div(long *bcd_low, long *bcd_high, long divisor)
+DSS_HUGE
+bcd2_div(DSS_HUGE *bcd_low, DSS_HUGE *bcd_high, DSS_HUGE divisor)
 {
-    long tmp_lo, tmp_hi, carry, d1, res, digit;
+    DSS_HUGE tmp_lo, tmp_hi, carry, d1, res, digit;
     
 
     carry = 0;
@@ -171,10 +166,10 @@ bcd2_div(long *bcd_low, long *bcd_high, long divisor)
     return(carry);
 }
 
-long
-bcd2_mod(long *bcd_low, long *bcd_high, long modulo)
+DSS_HUGE
+bcd2_mod(DSS_HUGE *bcd_low, DSS_HUGE *bcd_high, DSS_HUGE modulo)
 {
-	long tmp_low, tmp_high;
+	DSS_HUGE tmp_low, tmp_high;
 
 	tmp_low = *bcd_low;
 	tmp_high = *bcd_high;
@@ -183,10 +178,10 @@ bcd2_mod(long *bcd_low, long *bcd_high, long modulo)
 	return(tmp_low);
 }
 
-long
-bcd2_cmp(long *low1, long *high1, long comp)
+DSS_HUGE
+bcd2_cmp(DSS_HUGE *low1, DSS_HUGE *high1, DSS_HUGE comp)
 {
-	long temp = 0;
+	DSS_HUGE temp = 0;
 
     bcd2_bin(&temp, *high1);
 	if (temp > 214) 
@@ -198,9 +193,9 @@ bcd2_cmp(long *low1, long *high1, long comp)
 #ifdef TEST_BCD
 #include <values.h>
 
-main()
+int main()
 {
-long bin, low_bcd, high_bcd;
+DSS_HUGE bin, low_bcd, high_bcd;
 int i;
 
 bin = MAXINT;
@@ -233,5 +228,6 @@ bin = 0;
 bcd2_bin(&bin, high_bcd);
 bcd2_bin(&bin, low_bcd);
 printf( "%ld\n", bin);
+return(0);
 }
 #endif /* TEST */

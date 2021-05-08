@@ -5,13 +5,14 @@ LOC=`pwd`"/ssb_$SCALE"
 
 if [ ! -d $LOC ]; then
   mkdir $LOC
-  cp dbgen/dists.dss $LOC
+  cp ssb-dbgen/dists.dss $LOC
 fi
 
 pushd .
-cd dbgen
-make
+cd ssb-dbgen
+cmake -D EOL_HANDLING=ON . && cmake --build .
 DBGEN=`pwd`/dbgen
 cd $LOC
-$DBGEN -s $SCALE -T a
+
+$DBGEN -v -s $SCALE
 popd

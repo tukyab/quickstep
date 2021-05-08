@@ -1,23 +1,23 @@
 /* @(#)build.c	2.1.8.1 */
 /* Sccsid:     @(#)build.c	9.1.1.17     11/15/95  12:52:28 */
 /* stuff related to the customer table */
+
+#include "config.h"
 #include <stdio.h>
 #include <string.h>
-#ifdef SSBM
+#include <math.h>
+
+#ifdef SSB
 #include <time.h>
 #endif
-#ifndef VMS
+
+#ifdef HAVE_SYS_TYPES_H // #ifndef VMS originally
 #include <sys/types.h>
-#endif
-#if defined(SUN)
-#include <unistd.h>
-#endif
+#endif /* HAVE_SYS_TYPES_H */
 
-#if defined(LINUX)
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-
-#include <math.h>
+#endif /* HAVE_UNISTD_H */
 
 #include "dss.h"
 #include "dsstypes.h"
@@ -45,8 +45,8 @@ extern adhoc_t adhocs[];
 dbg_text(tgt, (int)(avg * V_STR_LOW),(int)(avg * V_STR_HGH), sd)
 static void gen_phone PROTO((long ind, char *target, long seed));
 
-#ifdef SSBM
-static void gen_category PROTO((char *target, long seed));
+#ifdef SSB
+/* static void gen_category PROTO((char *target, long seed)); */
 int gen_city PROTO((char *cityName, char *nationName));
 int gen_season PROTO((char * dest,int month,int day));
 int is_last_day_in_month PROTO((int year,int month,int day));
@@ -77,26 +77,28 @@ gen_phone(long ind, char *target, long seed)
     RANDOM(acode, 100, 999, seed);
     RANDOM(exchg, 100, 999, seed);
     RANDOM(number, 1000, 9999, seed);	
-    sprintf(target, "%02d", 10 + (ind % NATIONS_MAX));
-    sprintf(target + 3, "%03d", acode);
-    sprintf(target + 7, "%03d", exchg);
-    sprintf(target + 11, "%04d", number);
+    sprintf(target, "%02ld", 10 + (ind % NATIONS_MAX));
+    sprintf(target + 3, "%03ld", acode);
+    sprintf(target + 7, "%03ld", exchg);
+    sprintf(target + 11, "%04ld", number);
     target[2] = target[6] = target[10] = '-';	
     return;
 }
 
+/*
 static void
 gen_category(char *target, long seed){
   long num1,num2;
   RANDOM(num1,1,5,seed);
   RANDOM(num2,1,5,seed);
   strcpy(target,"MFGR");
-  sprintf(target + 4, "%01d", num1);
-  sprintf(target + 5, "%01d", num2);
+  sprintf(target + 4, "%01ld", num1);
+  sprintf(target + 5, "%01ld", num2);
   return;
 } 
+*/
 
-#ifdef SSBM
+#ifdef SSB
 long mk_cust(long n_cust, customer_t *c)
 {
         long i;
@@ -174,7 +176,7 @@ ez_sparse(long i, DSS_HUGE *ok, long seq)
 void
 hd_sparse(long i, DSS_HUGE *ok, long seq)
 	{
-	long low_mask, seq_mask;
+	DSS_HUGE low_mask, seq_mask;
 	static int init = 0;
 	static DSS_HUGE *base, *res;
 	
@@ -202,19 +204,19 @@ hd_sparse(long i, DSS_HUGE *ok, long seq)
 	}
 #endif
 
-#ifdef SSBM
+#ifdef SSB
 long
 mk_order(long index, order_t *o, long upd_num)
 	{
 	long      lcnt;
 	long      rprice;
-	long      ocnt;
+	/* long      ocnt; */
 	long      tmp_date;
 	long      c_date;
 	long      clk_num;
-	long      supp_num;
+	/* long      supp_num; */
 	static char **asc_date = NULL;
-	char tmp_str[2];
+	/* char tmp_str[2]; */
 	char **mk_ascdate PROTO((void));
 	int delta = 1;
 
@@ -238,7 +240,7 @@ mk_order(long index, order_t *o, long upd_num)
 	o->spriority = 0;
 	
 	o->totalprice = 0;
-	ocnt = 0;
+	/* ocnt = 0; */
 	
 	RANDOM(o->lines, O_LCNT_MIN, O_LCNT_MAX, O_LCNT_SD);
 	for (lcnt = 0; lcnt < o->lines; lcnt++)
@@ -396,7 +398,7 @@ mk_order(long index, order_t *o, long upd_num)
 }
 #endif
 
-#ifdef SSBM
+#ifdef SSB
 long mk_part(long index, part_t *p)
 {
 	long      mfgr,cat,brnd;
@@ -410,14 +412,14 @@ long mk_part(long index, part_t *p)
 	
 	
 	RANDOM(mfgr, P_MFG_MIN, P_MFG_MAX, P_MFG_SD);
-	sprintf(p->mfgr, "%s%d", "MFGR#", mfgr);
+	sprintf(p->mfgr, "%s%ld", "MFGR#", mfgr);
 
     RANDOM(cat, P_CAT_MIN, P_CAT_MAX, P_CAT_SD);
-    sprintf(p->category, "%s%d", p->mfgr,cat);
+    sprintf(p->category, "%s%ld", p->mfgr,cat);
 	
 
 	RANDOM(brnd, P_BRND_MIN, P_BRND_MAX, P_BRND_SD);
-	sprintf(p->brand,"%s%d",p->category,brnd);
+	sprintf(p->brand,"%s%ld",p->category,brnd);
 
 	p->tlen = pick_str(&p_types_set, P_TYPE_SD, p->type);
 	p->tlen = strlen(p_types_set.list[p->tlen].text);
@@ -464,15 +466,15 @@ mk_part(long index, part_t *p)
 #endif
 
 
-#ifdef SSBM
+#ifdef SSB
 long
 mk_supp(long index, supplier_t *s)
 {
-	long     i,
-		bad_press,
-		noise,
-		offset,
-		type;
+	long i;
+	/* long bad_press; */
+	/* long noise; */
+	/* long offset; */
+	/* long type; */
         s->suppkey = index;
 	sprintf(s->name, S_NAME_FMT, S_NAME_TAG, index); 
 	s->alen = V_STR(S_ADDR_LEN, S_ADDR_SD, s->address);
@@ -594,12 +596,12 @@ mk_time(long index, dss_time_t *t)
 		}
 
 
-#ifdef SSBM
-		/*bug!*/
+#ifdef SSB
+	/*bug! <- maybe this was fixed by using a valid seed?*/
 int gen_city(char *cityName, char *nationName){
     int i=0;
     long randomPick;
-	int clen = strlen(cityName);
+	/* int clen = strlen(cityName); */
 	int nlen = strlen(nationName);
 
     strncpy(cityName,nationName,CITY_FIX-1);
@@ -608,17 +610,17 @@ int gen_city(char *cityName, char *nationName){
       for(i = nlen ; i< CITY_FIX-1;i++)
         cityName[i] = ' ';
     }
-    RANDOM(randomPick, 0, 9, 98);
+    RANDOM(randomPick, 0, 9, P_CITY_SD);
     
-    sprintf(cityName+CITY_FIX-1,"%d",randomPick);
+    sprintf(cityName+CITY_FIX-1,"%ld",randomPick);
     cityName[CITY_FIX] = '\0';
     return 0; 
 }
 
 
 /*
-P_NAME is as long as 55 bytes in TPC-H, which is un¬reasonably large. 
-We reduce it to 22 by limiting to a concatena¬tion of two colors (see [TPC-H], pg 94). 
+P_NAME is as long as 55 bytes in TPC-H, which is unreasonably large.
+We reduce it to 22 by limiting to a concatenation of two colors (see [TPC-H], pg 94).
 We also add a new column named P_COLOR that could be used in queries where currently a 
 color must be chosen by substring from P_NAME.
 */
@@ -671,8 +673,8 @@ holiday holidays[]={
 };
 
 char * month_names[]={"January","February","March","April",
-                 "May","June","July","Augest",
-                 "September","Octorber","November","December"};
+                 "May","June","July","August",
+                 "September","October","November","December"};
 
 char * weekday_names[]={"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
 
@@ -692,8 +694,15 @@ mk_date(long index,date_t *d)
     /*make Sunday be the first day of a week */
     d->daynuminweek=((long)localTime->tm_wday+1)%7+1;
     d->monthnuminyear=(long)localTime->tm_mon+1;
+#if __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
     strncpy(d->dayofweek, weekday_names[d->daynuminweek-1],D_DAYWEEK_LEN+1);
     strncpy(d->month,month_names[d->monthnuminyear-1],D_MONTH_LEN+1);
+#if __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
     d->year=(long)localTime->tm_year + 1900;
     d->daynuminmonth=(long)localTime->tm_mday;
     d->yearmonthnum=d->year * 100 + d->monthnuminyear;
@@ -715,9 +724,9 @@ mk_date(long index,date_t *d)
     d->lastdayinweekfl[1]='\0';
 
     if(is_last_day_in_month(d->year,d->monthnuminyear,d->daynuminmonth)==1){
-	d->lastdayinmonthfl[0]= '0';
-    }else{
 	d->lastdayinmonthfl[0]= '1';
+    }else{
+	d->lastdayinmonthfl[0]= '0';
     }
     d->lastdayinmonthfl[1]='\0';
  

@@ -41,7 +41,7 @@ function load_data {
       fi
 
       echo Loading $TBL from file: $tblfile;
-      if ! echo "COPY $TBL FROM '$tblfile' WITH (DELIMITER ',');" | $QSEXE;
+      if ! echo "COPY $TBL FROM '$tblfile' WITH (DELIMITER '|');" | $QSEXE;
       then
         echo "Quickstep load failed.";
         exit 1;

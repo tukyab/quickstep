@@ -17,6 +17,16 @@
 #include <math.h>
 #include "dss.h"
 #include "rnd.h" 
+#include <assert.h>
+
+/* Note: This file may not currently be using anything from <inttypes.h> or <stdint.h> */
+#if defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
+#include <stdint.h>
+#elif defined(HAVE_SYS_BITTYPES_H)
+#include <sys/bittypes.h>
+#endif /* HAVE_INTTYPES_H */
 
 char *env_config PROTO((char *tag, char *dflt));
 void NthElement(long, long *);
@@ -24,6 +34,7 @@ void NthElement(long, long *);
 void
 dss_random(long *tgt, long lower, long upper, long stream)
 {
+	assert(stream >= 0 && stream <= MAX_STREAM);
 	*tgt = UnifInt((long)lower, (long)upper, (long)stream);
 	Seed[stream].usage += 1;
 
@@ -34,6 +45,7 @@ void
 row_start(int t)	\
 {
 	int i;
+	UNUSED(t);
 	for (i=0; i <= MAX_STREAM; i++) 
 		Seed[i].usage = 0 ; 
 	
@@ -52,11 +64,12 @@ row_stop(int t)	\
 		t = PART;
 	
 	for (i=0; i <= MAX_STREAM; i++)
+		{
 		if ((Seed[i].table == t) || (Seed[i].table == tdefs[t].child))
 			{ 
 			if (set_seeds && (Seed[i].usage > Seed[i].boundary))
 				{
-				fprintf(stderr, "\nSEED CHANGE: seed[%d].usage = %d\n", 
+				fprintf(stderr, "\nSEED CHANGE: seed[%d].usage = %ld\n",
 					i, Seed[i].usage); 
 				Seed[i].boundary = Seed[i].usage;
 				} 
@@ -65,7 +78,8 @@ row_stop(int t)	\
 				NthElement((Seed[i].boundary - Seed[i].usage), &Seed[i].value);
 				}
 			} 
-		return;
+		}
+	return;
 	}
 
 void
@@ -183,7 +197,7 @@ UnifInt(long nLow, long nHigh, long nStream)
         nHigh = nTemp;
     }
 
-    dRange = DOUBLE_CAST (nHigh - nLow + 1);
+    dRange = (double) (nHigh - nLow + 1);
     Seed[nStream].value = NextRand(Seed[nStream].value);
     nTemp = (long) (((double) Seed[nStream].value / dM) * (dRange));
     return (nLow + nTemp);

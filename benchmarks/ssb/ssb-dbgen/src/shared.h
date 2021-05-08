@@ -1,6 +1,6 @@
 /*
  *  Sccsid:     @(#)shared.h	2.1.8.1
- *  Modified for SSBM
+ *  Modified for SSB
  */
 #define N_CMNT_LEN      72
 #define N_CMNT_MAX      152
@@ -9,7 +9,7 @@
 #define  MONEY_SCL     0.01
 #define  V_STR_HGH    1.6
 
-#ifdef SSBM
+#ifdef SSB
 #define  P_NAME_LEN    22
 #define  P_MFG_LEN     6
 #define  P_COLOR_LEN   3
@@ -18,7 +18,22 @@
 #define  P_CAT_LEN     7
 #define  P_CAT_MIN     1
 #define  P_CAT_MAX     5
-#define  P_CAT_SD      97
+/*
+ *
+ * In the originally-published version of this file,
+ * the following definition was included:
+ *
+ *   #define  P_CAT_SD      97
+ *
+ * but that's inappropriate, both since seeds are defined in dss.h,
+ * and because it exceeds MAX_STREAM, so it's not covered by the Seed
+ * array (see rnd.h). Now, magically, this often didn't trigger
+ * a segmentation fault, despite out-of-bounds access to Seed[P_CAT_SD];
+ * but the value was junk; or maybe it was 0, due to some fortunate
+ * coincidence.
+ *
+ * At any rate, this was moved and changed.
+ */
 #define  S_NATION_NAME_LEN 15
 #define  S_REGION_NAME_LEN 12
 #define  C_NATION_NAME_LEN 15
@@ -49,7 +64,7 @@
 
 #define  P_BRND_LEN    10
 
-#ifdef SSBM
+#ifdef SSB
 #define  P_TYPE_LEN    12
 
 #else
@@ -65,7 +80,7 @@
 
 #define  S_NAME_LEN    25
 
-#ifdef SSBM
+#ifdef SSB
 #define  S_ADDR_LEN    15
 #define  S_ADDR_MAX    25
 #else
@@ -79,7 +94,7 @@
 #define  PS_CMNT_LEN  124
 #define  PS_CMNT_MAX  199
 
-#ifdef SSBM
+#ifdef SSB
 #define  C_NAME_LEN    25
 #define  C_MSEG_MIN    1
 #define  C_MSEG_MAX    5
@@ -95,7 +110,7 @@
 #define  C_CMNT_LEN    73
 #define  C_CMNT_MAX    117
 
-#ifdef SSBM
+#ifdef SSB
 #define  O_OPRIO_LEN   8
 
 #else
@@ -116,12 +131,10 @@
 #define  REGION_LEN    25
 #define  PHONE_LEN     15
 
-#ifdef SSBM
-#define  MAXAGG_LEN    20    /* max component length for a agg str */
-
+#ifdef SSB
+#define  MAXAGG_LEN    15    /* max component length for agg str; longest string is "4-NOT SPECIFIED" */
 #else
 #define  MAXAGG_LEN    20    /* max component length for a agg str */
-
 #endif
 
 #define  P_CMNT_SD      6

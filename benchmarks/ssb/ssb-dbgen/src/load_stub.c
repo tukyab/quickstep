@@ -33,6 +33,7 @@ hd_cust (FILE *f)
 {
     static int count = 0;
 
+    UNUSED(f);
     if (! count++)
         printf("No header has been defined for the customer table\n");
 
@@ -44,6 +45,8 @@ ld_cust (customer_t *cp, int mode)
 {
     static int count = 0;
 
+    UNUSED(cp);
+    UNUSED(mode);
     if (! count++)
         printf("%s %s\n",
             "No load routine has been defined",
@@ -57,6 +60,7 @@ hd_part (FILE *f)
 {
     static int count = 0;
 
+    UNUSED(f);
     if (! count++)
         printf("No header has been defined for the part table\n");
 
@@ -68,6 +72,8 @@ ld_part (part_t *pp, int mode)
 {
     static int count = 0;
 
+    UNUSED(pp);
+    UNUSED(mode);
     if (! count++)
         printf("No load routine has been defined for the part table\n");
 
@@ -79,6 +85,8 @@ ld_psupp (part_t *pp, int mode)
 {
     static int count = 0;
 
+    UNUSED(pp);
+    UNUSED(mode);
     if (! count++)
         printf("%s %s\n",
             "No load routine has been defined for the",
@@ -94,6 +102,7 @@ hd_supp (FILE *f)
 {
     static int count = 0;
 
+    UNUSED(f);
     if (! count++)
         printf("No header has been defined for the supplier table\n");
 
@@ -105,6 +114,8 @@ ld_supp (supplier_t *sp, int mode)
 {
     static int count = 0;
 
+    UNUSED(sp);
+    UNUSED(mode);
     if (! count++)
         printf("%s %s\n",
             "No load routine has been defined",
@@ -119,6 +130,7 @@ hd_order (FILE *f)
 {
     static int count = 0;
 
+    UNUSED(f);
     if (! count++)
         printf("No header has been defined for the order table\n");
 
@@ -130,6 +142,8 @@ ld_order (order_t *p, int mode)
 {
     static int count = 0;
 
+    UNUSED(p);
+    UNUSED(mode);
     if (! count++)
         printf("%s %s\n",
             "No load routine has been defined",
@@ -138,10 +152,12 @@ ld_order (order_t *p, int mode)
     return(0);
 }
 
-ld_line (order_t *p, int mode)
+int ld_line (order_t *p, int mode)
 {
     static int count = 0;
 
+    UNUSED(p);
+    UNUSED(mode);
     if (! count++)
         printf("%s %s\n",
             "No load routine has been defined",
@@ -157,6 +173,7 @@ hd_psupp (FILE *f)
 {
     static int count = 0;
 
+   UNUSED(f);
     if (! count++)
         printf("%s %s\n",
             "No header has been defined for the",
@@ -171,6 +188,7 @@ hd_line (FILE *f)
 {
     static int count = 0;
 
+    UNUSED(f);
     if (! count++)
         printf("No header has been defined for the lineitem table\n");
 
@@ -182,19 +200,22 @@ hd_nation (FILE *f)
 {
     static int count = 0;
 
+    UNUSED(f);
     if (! count++)
         printf("No header has been defined for the nation table\n");
 
     return(0);
 }
 
-#ifdef SSBM
+#ifdef SSB
 #else
 int 
 ld_nation (code_t *cp, int mode)
 {
     static int count = 0;
 
+    UNUSED(cp);
+    UNUSED(mode);
     if (! count++)
         printf("%s %s\n",
             "No load routine has been defined",
@@ -264,10 +285,12 @@ hd_part_psupp (FILE *f)
 }
 #endif
 
-#ifdef SSBM
+#ifdef SSB
 int
 ld_date (date_t *d, int mode)
 {
+    UNUSED(d);
+    UNUSED(mode);
     /*do nothing for now*/
     return(0);
 }

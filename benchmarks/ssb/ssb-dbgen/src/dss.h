@@ -1,14 +1,14 @@
 /*
  * Sccsid:     @(#)dss.h	2.1.8.5
  *
- * general definitions and control information for the DSS code
+ * general definitions and control information for the DSS code 
  * generator; if it controls the data set, it's here
  */
 #ifndef DSS_H
 #define  DSS_H
 
-#ifdef SSBM
-#define NAME			"SSBM (Star Schema Benchmark)"
+#ifdef SSB
+#define NAME			"SSB (Star Schema Benchmark)"
 #define VERSION           1
 #define RELEASE           0
 #define MODIFICATION      0
@@ -16,10 +16,10 @@
 
 
 /*global variables*/
-/*SSBM added DATE table*/
+/*SSB added DATE table*/
 #define  DATE           4
 
-/*SSBM use the lineorder without partsupp and order table*/
+/*SSB use the lineorder without partsupp and order table*/
 #define  L_SKEY_MIN   1
 #define  L_SKEY_MAX (tdefs[SUPP].base * scale)
 
@@ -50,7 +50,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef SSBM
+#ifdef SSB
 #include <math.h>
 #endif
 
@@ -79,11 +79,11 @@
 #define MAX(a,b) ((a > b )?a:b)
 #define MIN(A,B)  ( (A) < (B) ? (A) : (B))
 
+#ifndef UNUSED
+#define UNUSED(x) (void) x
+#endif
+
 #define INTERNAL_ERROR(p)  {fprintf(stderr,"%s", p);abort();}
-#define LN_CNT  4
-static char lnoise[4] = {'|', '/', '-', '\\' };
-#define LIFENOISE(n, var)	\
-	if (verbose > 0) fprintf(stderr, "%c\b", lnoise[(var%LN_CNT)])
 
 #define MALLOC_CHECK(var) \
     if ((var) == NULL) \
@@ -117,8 +117,8 @@ static char lnoise[4] = {'|', '/', '-', '\\' };
 #define  MK_SPARSE(key, seq) \
          (((((key>>3)<<2)|(seq & 0x0003))<<3)|(key & 0x0007))
 
-#define RANDOM(tgt, lower, upper, stream)	dss_random(&tgt, lower, upper, stream)
-#ifdef SSBM
+#define RANDOM(tgt, lower, upper, stream)	dss_random(&tgt, (long) lower, (long) upper, (long) stream)
+#ifdef SSB
 typedef struct{
   char * name;
   int start_day;
@@ -133,8 +133,8 @@ typedef struct {
 } holiday;
 
 
-#endif
-
+#endif	
+     
 
 typedef struct
 {
@@ -151,7 +151,7 @@ typedef struct
 }         distribution;
 
 /*
- * some handy access functions
+ * some handy access functions 
  */
 #define DIST_SIZE(d)		d->count
 #define DIST_MEMBER(d, i)	((set_member *)((d)->list + i))->text
@@ -197,9 +197,9 @@ int		pick_str PROTO((distribution * s, int c, char *target));
 void	agg_str PROTO((distribution *set, long count, long col, char *dest));
 void	read_dist PROTO((char *path, char *name, distribution * target));
 void	embed_str PROTO((distribution *d, int min, int max, int stream, char *dest));
-#ifndef STDLIB_HAS_GETOPT
-int		getopt PROTO((int arg_cnt, char **arg_vect, char *oprions));
-#endif /* STDLIB_HAS_GETOPT */
+#ifndef HAVE_GETOPT
+int		getopt PROTO((int arg_cnt, char **arg_vect, char *options));
+#endif /* HAVE_GETOPT */
 long	set_state PROTO((int t, long scale, long procs, long step, long *e));
 
 /* rnd.c */
@@ -279,7 +279,7 @@ EXTERN int delete_segments;
 EXTERN int insert_orders_segment;
 EXTERN int insert_lineitem_segment;
 EXTERN int delete_segment;
-
+ 
 
 #ifndef DECLARER
 extern tdef tdefs[];
@@ -299,20 +299,20 @@ extern tdef tdefs[];
  * defines which control the parts table
  */
 #define  P_SIZE       126
-#ifdef SSBM
+#ifdef SSB
 #define  P_NAME_SCL   3     /*5 change to 3 according to the new schema*/
 #else
 #define  P_NAME_SCL   5
 #endif
 #define  P_MFG_TAG    "Manufacturer#"
-#define  P_MFG_FMT     "%s%01d"
+#define  P_MFG_FMT     "%s%01ld"
 #define  P_MFG_MIN     1
 #define  P_MFG_MAX     5
 #define  P_BRND_TAG   "Brand#"
-#define  P_BRND_FMT   "%s%02d"
+#define  P_BRND_FMT   "%s%02ld"
 #define  P_BRND_MIN     1
 
-/*#ifdef SSBM
+/*#ifdef SSB
 #define  P_BRND_MAX     5
 #else*/
 #define  P_BRND_MAX 40
@@ -334,7 +334,7 @@ extern tdef tdefs[];
 #define  S_NAME_FMT "%s%09ld"
 #define  S_ABAL_MIN   -99999
 #define  S_ABAL_MAX    999999
-#define  S_CMNT_MAX    101
+#define  S_CMNT_MAX    101      
 #define  S_CMNT_BBB    10       /* number of BBB comments/SF */
 #define  BBB_DEADBEATS 50       /* % that are complaints */
 #define  BBB_BASE  "Customer "
@@ -359,7 +359,7 @@ extern tdef tdefs[];
  */
 #define  C_SIZE       165
 #define  C_NAME_TAG   "Customer#"
-#define  C_NAME_FMT   "%s%09d"
+#define  C_NAME_FMT   "%s%09ld"
 #define  C_MSEG_MAX    5
 #define  C_ABAL_MIN   -99999
 #define  C_ABAL_MAX    999999
@@ -373,7 +373,7 @@ extern tdef tdefs[];
 #define  O_ODATE_MAX     (STARTDATE + TOTDATE - \
                          (L_SDTE_MAX + L_RDTE_MAX) - 1)
 #define  O_CLRK_TAG      "Clerk#"
-#define  O_CLRK_FMT      "%s%09d"
+#define  O_CLRK_FMT      "%s%09ld"
 #define  O_CLRK_SCL      1000
 #define  O_LCNT_MIN      1
 #define  O_LCNT_MAX      7
@@ -390,7 +390,7 @@ extern tdef tdefs[];
 #define  L_DCNT_MAX   10
 #define  L_PKEY_MIN   1
 
-#ifdef SSBM
+#ifdef SSB
 /*part table log based*/
 #define  L_PKEY_MAX   (tdefs[PART].base * (floor(log((double)scale))+1))
 #else
@@ -427,7 +427,12 @@ extern tdef tdefs[];
 #define  ENDDATE      98365
 #define  TOTDATE      2557
 #define  UPD_PCT      10
+#ifdef SSB
+#define  MAX_STREAM   49
+#else
 #define  MAX_STREAM   47
+#endif
+
 #define  V_STR_LOW    0.4
 #define  PENNIES    100 /* for scaled int money arithmetic */
 #define  Q11_FRACTION (double)0.0001
@@ -446,14 +451,14 @@ extern tdef tdefs[];
 			}
 #define FREE_HUGE(v)	free(v)
 #ifdef SUPPORT_64BITS
-#define LONG2HUGE(src, dst)		*dst = (DSS_HUGE)src
+#define LONG2HUGE(src, dst)		*dst = (DSS_HUGE)src	
 #define HUGE2LONG(src, dst)		*dst = (long)src
-#define HUGE_SET(src, dst)		*dst = *src
-#define HUGE_MUL(op1, op2)		*op1 *= op2
-#define HUGE_DIV(op1, op2)		*op1 /= op2
-#define HUGE_ADD(op1, op2, dst)	*dst = *op1 + op2
-#define HUGE_SUB(op1, op2, dst)	*dst = *op1 - op2
-#define HUGE_MOD(op1, op2)		*op1 % op2
+#define HUGE_SET(src, dst)		*dst = *src	
+#define HUGE_MUL(op1, op2)		*op1 *= op2	
+#define HUGE_DIV(op1, op2)		*op1 /= op2	
+#define HUGE_ADD(op1, op2, dst)	*dst = *op1 + op2	
+#define HUGE_SUB(op1, op2, dst)	*dst = *op1 - op2	
+#define HUGE_MOD(op1, op2)		*op1 % op2	
 #define HUGE_CMP(op1, op2)		(*op1 == *op2)?0:(*op1 < *op2)-1:1
 #else
 #define LONG2HUGE(src, dst)		{*dst = src; *(dst + 1) = 0;}
@@ -487,9 +492,9 @@ extern tdef tdefs[];
 #define  ADHOC_DFLT "adhoc.dss"		/* default file name for adhoc vars */
 
 /******* output macros ********/
-#ifndef SEPARATOR
-#define SEPARATOR ',' /* field spearator for generated flat files */
-#endif
+
+/* SEPARATOR, the field separator, has moved to config.h */
+
 /* Data type flags for a single print routine */
 #define DT_STR		0
 #ifndef MVS
@@ -502,48 +507,63 @@ extern tdef tdefs[];
 #define DT_KEY		4
 #define DT_MONEY	5
 #define DT_CHR		6
-#define DT_DATE		7
 
 int dbg_print(int dt, FILE *tgt, void *data, int len, int eol);
 #define PR_STR(f, str, len)		dbg_print(DT_STR, f, (void *)str, len, 1)
 #define PR_VSTR(f, str, len) 	dbg_print(DT_VSTR, f, (void *)str, len, 1)
 #define PR_VSTR_LAST(f, str, len) 	dbg_print(DT_VSTR, f, (void *)str, len, 0)
-#define PR_INT(f, str) 			dbg_print(DT_INT, f, (void *)str, 0, 1)
-#define PR_HUGE(f, str) 		dbg_print(DT_HUGE, f, (void *)str, 0, 1)
-#define PR_KEY(f, str) 			dbg_print(DT_KEY, f, (void *)str, 0, -1)
-#define PR_MONEY(f, str) 		dbg_print(DT_MONEY, f, (void *)str, 0, 1)
-#define PR_CHR(f, str)	 		dbg_print(DT_CHR, f, (void *)str, 0, 1)
-#define PR_D(f, str)	 		dbg_print(DT_DATE, f, (void *)str, 0, 1)
+#define PR_INT(f, val) 			{ long tmp = val; dbg_print(DT_INT,   f, &tmp, 0, 1);  }
+#define PR_HUGE(f, val) 		dbg_print(DT_HUGE, f, (void *)val, 0, 1)
+#define PR_KEY(f, val) 			{ long tmp = val; dbg_print(DT_KEY,   f, &tmp, 0, -1); }
+#define PR_MONEY(f, val) 		{ long tmp = val; dbg_print(DT_MONEY, f, &tmp, 0, 1);  }
+#define PR_CHR(f, val)	 		{ char tmp = val; dbg_print(DT_CHR,   f, &tmp, 0, 1);  }
 #define  PR_STRT(fp)   /* any line prep for a record goes here */
 #define  PR_END(fp)    fprintf(fp, "\n")   /* finish the record here */
 
-#ifdef SSBM
-#define  PR_DATE(tgt, yr, mn, dy)	\
-   sprintf(tgt, "19%02d-%02d-%02d", yr, mn, dy)
+
+#ifdef SSB
+#ifdef YMD_DASH_DATE
+#define  PR_DATE(tgt, yr, mn, dy) { \
+	int yr_  = yr; \
+	int mn_  = mn; \
+	int dy_  = dy; \
+  snprintf(tgt, 2+1+2+1+4+1, "19%02d-%02d-%02d",yr_, mn_, dy_); \
+}
 #else
-#ifdef MDY_DATE
-#define  PR_DATE(tgt, yr, mn, dy)	\
-   sprintf(tgt, "%02d-%02d-19%02d", mn, dy, yr)
-#else
-#define  PR_DATE(tgt, yr, mn, dy)	\
-sprintf(tgt, "19%02d-%02d-%02d", yr, mn, dy)
-#endif /* DATE_FORMAT */
+#define  PR_DATE(tgt, yr, mn, dy) { \
+	int yr_  = yr; \
+	int mn_  = mn; \
+	int dy_  = dy; \
+	snprintf(tgt, 4+2+2+1, "19%02d%02d%02d", yr_, mn_, dy_); \
+}
 #endif
+#else
+#define  PR_DATE(tgt, yr, mn, dy) { \
+	int yr_  = yr; \
+	int mn_  = mn; \
+	int dy_  = dy; \
+	snprintf(tgt, 2+1+2+1+4+1, "%02d-%02d-19%02d", yr_, mn_, dy_) \
+}
+#endif
+
 /*
  * verification macros
  */
 #define  VRF_STR(t, d) {char *xx = d; while (*xx) tdefs[t].vtotal += *xx++;}
 #define  VRF_INT(t,d)  tdefs[t].vtotal += d
-#ifdef SUPPORT_64BITS
-#define  VRF_HUGE(t,d)	tdefs[t].vtotal = *((long *)&d) + *((long *)(&d + 1))
-#else
-#define VRF_HUGE(t,d)	tdefs[t].vtotal += d[0] + d[1]
-#endif /* SUPPORT_64BITS */
+/* The following conditional definition is not necessary by this point, since
+ * d is already a DSS_HUGE in the contexts in which this macro is expanded.
+ */
+// #ifdef SUPPORT_64BITS
+// #define  VRF_HUGE(t,d)	tdefs[t].vtotal = *((DSS_HUGE *)&d) + *((DSS_HUGE *)(&d + 1))
+// #else
+#define VRF_HUGE(t,d)	tdefs[t].vtotal += (unsigned long) (d[0] + d[1])
+// #endif /* SUPPORT_64BITS */
 /* assume float is a 64 bit quantity */
 #define  VRF_MONEY(t,d)	tdefs[t].vtotal = *((long *)&d) + *((long *)(&d + 1))
 #define  VRF_CHR(t,d)	tdefs[t].vtotal += d
-#define  VRF_STRT(t)
-#define  VRF_END(t)
+#define  VRF_STRT(t)  
+#define  VRF_END(t)  
 
 /*********** distribuitons currently defined *************/
 #define  UNIFORM   0
@@ -587,9 +607,30 @@ sprintf(tgt, "19%02d-%02d-%02d", yr, mn, dy)
 #define  N_CMNT_SD 41
 #define  R_CMNT_SD 42
 #define  O_LCNT_SD 43
-#define  BBB_JNK_SD    44
-#define  BBB_TYPE_SD   45
-#define  BBB_CMNT_SD   46
-#define  BBB_OFFSET_SD 47
+#define  BBB_JNK_SD    44          
+#define  BBB_TYPE_SD   45         
+#define  BBB_CMNT_SD   46         
+#define  BBB_OFFSET_SD 47         
+#ifdef SSB
+#define  P_CAT_SD  48
+#define  P_CITY_SD 49
+#endif
 
 #endif            /* DSS_H */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

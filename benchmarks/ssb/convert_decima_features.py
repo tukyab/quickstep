@@ -43,11 +43,10 @@ def fix_esc(line):
     l = l.replace("\\'", "\\\\'")
     return l
 
-data_size = 2
 queries = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13"]
 cores = [2,5,10,30]
-query = 0
 operator = []
+for data_size in [2, 5, 10, 20, 50, 80, 100]:
 for q in range(len(queries)):
     with open("/ssd1/tenzin/ssb/json_" + str(data_size) + "g/q" + queries[q] + "_c2.json", "r") as f:
         lines = f.readlines()

@@ -3,13 +3,13 @@
  *
  * general definitions and control information for the DSS data types
  * and function prototypes
- * Modified for SSBM prototype
+ * Modified for SSB prototype
  */
 
 /*
  * typedefs
  */
-#ifdef SSBM
+#ifdef SSB
 typedef struct
 {
     long            custkey;
@@ -46,7 +46,7 @@ long mk_cust   PROTO((long n_cust, customer_t * c));
 int pr_cust    PROTO((customer_t * c, int mode));
 int ld_cust    PROTO((customer_t * c, int mode));
 
-#ifdef SSBM
+#ifdef SSB
 
 typedef struct
 {
@@ -91,7 +91,7 @@ typedef struct
 }               line_t;
 #endif
 
-#ifdef SSBM
+#ifdef SSB
 typedef struct
 {
     DSS_HUGE	    *okey;
@@ -131,8 +131,8 @@ void	ez_sparse	PROTO((long index, DSS_HUGE *ok, long seq));
 void	hd_sparse	PROTO((long index, DSS_HUGE *ok, long seq));
 #endif
 
-#ifdef SSBM
-/*SSBM removes the part supplier table*/       
+#ifdef SSB
+/*SSB removes the part supplier table*/       
 #else
 typedef struct
 {
@@ -145,7 +145,7 @@ typedef struct
 }               partsupp_t;
 #endif
 
-#ifdef SSBM
+#ifdef SSB
 typedef struct
 {
     long           partkey;
@@ -185,7 +185,7 @@ long mk_part   PROTO((long index, part_t * p));
 int pr_part    PROTO((part_t * part, int mode));
 int ld_part    PROTO((part_t * part, int mode));
 
-#ifdef SSBM
+#ifdef SSB
 typedef struct
 {
     long            suppkey;
@@ -219,7 +219,7 @@ long mk_supp   PROTO((long index, supplier_t * s));
 int pr_supp    PROTO((supplier_t * supp, int mode));
 int ld_supp    PROTO((supplier_t * supp, int mode));
 
-#ifdef SSBM
+#ifdef SSB
 /*todo: add new date table*/
 
 typedef struct

@@ -6,30 +6,53 @@
 #define NO_LFUNC (long (*) ()) NULL		/* to clean up tdefs */
 
 #include "config.h"
-#include <stdlib.h>
-#if (defined(_POSIX_)||!defined(WIN32))		/* Change for Windows NT */
-#ifndef DOS
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#endif
+#if (defined(HAVE_FORK) && defined(HAVE_WAIT) && defined(HAVE_KILL))
+#define CAN_PARALLELIZE_DATA_GENERATION
+#endif /* (defined(HAVE_FORK) && defined(HAVE_WAIT) && defined(HAVE_KILL)) */
 
-#endif /* WIN32 */
-#include <stdio.h>				/* */
+#include <stdlib.h>
+#include <stdio.h>
 #include <limits.h>
 #include <math.h>
 #include <ctype.h>
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
-#ifdef HP
+
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif /* HAVE_SYS_TYPES_H */
+
+#ifdef HAVE_STRINGS_H
 #include <strings.h>
 #endif
-#if (defined(WIN32)&&!defined(_POSIX_))
+
+#if (!defined(STDLIB_HAS_GETOPT) && defined(HAVE_GETOPT_H))
+#include <getopt.h>
+#elif (!defined(HAVE_GETOPT))
+int     getopt(int arg_cnt, char **arg_vect, char *options);
+#endif /* (!defined(STDLIB_HAS_GETOPT) && defined(HAVE_GETOPT_H)) */
+
+#ifdef HAVE_SYS_TYPES_H
+	#include <sys/types.h>
+#endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
+
+#if (defined(HAVE_PROCESS_H) && defined(HAVE_WINDOWS_H)) // Windows system
+/* TODO: Do we really need all of these Windows-specific definitions? */
 #include <process.h>
+#ifdef _MSC_VER
 #pragma warning(disable:4201)
 #pragma warning(disable:4214)
 #pragma warning(disable:4514)
+#endif
 #define WIN32_LEAN_AND_MEAN
 #define NOATOM
 #define NOGDICAPMASKS
@@ -47,15 +70,17 @@
 #define NOKANJI
 #define NOMCX
 
-#include "windows.h"
-
+#include <windows.h>
+#ifdef _MSC_VER
 #pragma warning(default:4201)
 #pragma warning(default:4214)
+#endif
 #endif
 
 #include "dss.h"
 #include "dsstypes.h"
 #include "bcd2.h"
+#include "life_noise.h"
 
 /*
 * Function prototypes
@@ -65,17 +90,18 @@ int		prep_direct (char *);
 int		close_direct (void);
 void	kill_load (void);
 int		pload (int tbl);
-void	gen_tbl (int tnum, long start, long count, long upd_num);
-int		pr_drange (int tbl, long min, long cnt, long num);
+void	gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num);
+int		pr_drange (int tbl, DSS_HUGE min, DSS_HUGE cnt, long num);
 int		set_files (int t, int pload);
 int		partial (int, int);
 
 
 extern int optind, opterr;
 extern char *optarg;
-long rowcnt = 0, minrow = 0, upd_num = 0;
+DSS_HUGE rowcnt = 0, minrow = 0;
+long upd_num = 0;
 double flt_scale;
-#if (defined(WIN32)&&!defined(_POSIX_))
+#if ( defined(WIN32) && !defined(_POSIX_C_SOURCE) )
 char *spawn_args[25];
 #endif
 
@@ -106,7 +132,7 @@ char *spawn_args[25];
 /*
 * flat file print functions; used with -F(lat) option
 */
-#ifdef SSBM
+#ifdef SSB
 int pr_cust (customer_t * c, int mode);
 int pr_part (part_t * p, int mode);
 int pr_supp (supplier_t * s, int mode);
@@ -127,7 +153,7 @@ int pr_region (code_t * c, int mode);
 /*
 * inline load functions; used with -D(irect) option
 */
-#ifdef SSBM
+#ifdef SSB
 int ld_cust (customer_t * c, int mode);
 int ld_part (part_t * p, int mode);
 int ld_supp (supplier_t * s, int mode);
@@ -152,7 +178,7 @@ int ld_region (code_t * c, int mode);
 /*
 * seed generation functions; used with '-O s' option
 */
-#ifdef SSBM
+#ifdef SSB
 long sd_cust (int child, long skip_count);
 long sd_part (int child, long skip_count);
 long sd_supp (int child, long skip_count);
@@ -174,7 +200,7 @@ long sd_part_psupp (int child, long skip_count);
 /*
 * header output functions); used with -h(eader) option
 */
-#ifdef SSBM
+#ifdef SSB
 int hd_cust (FILE * f);
 int hd_part (FILE * f);
 int hd_supp (FILE * f);
@@ -196,7 +222,7 @@ int hd_region (FILE * f);
 /*
 * data verfication functions; used with -O v option
 */
-#ifdef SSBM
+#ifdef SSB
 int vrf_cust (customer_t * c, int mode);
 int vrf_part (part_t * p, int mode);
 int vrf_supp (supplier_t * s, int mode);
@@ -217,19 +243,19 @@ int vrf_region (code_t * c, int mode);
 #endif
 
 
-#ifdef SSBM
+#ifdef SSB
 tdef tdefs[] =
 {
    
     	{"part.tbl", "part table", 200000, hd_part,
-		{pr_part, ld_part}, sd_part, vrf_part, PSUPP, 0},
+		{pr_part, ld_part}, sd_part, vrf_part, NONE, 0},
 	{0,0,0,0,{0,0}, 0,0,0,0},
 	{"supplier.tbl", "suppliers table", 2000, hd_supp,
 	        {pr_supp, ld_supp}, sd_supp, vrf_supp, NONE, 0},
     
 	{"customer.tbl", "customers table", 30000, hd_cust,
 		{pr_cust, ld_cust}, sd_cust, vrf_cust, NONE, 0},
-	{"date.tbl","date table",2556,0,{pr_date,ld_date}, 0,vrf_date, NONE,0},
+	{"date.tbl","date table",2557,0,{pr_date,ld_date}, NULL,vrf_date, NONE,0},
 	/*line order is SF*1,500,000, however due to the implementation
 	  the base here is 150,000 instead if 1500,000*/
 	{"lineorder.tbl", "lineorder table", 150000, hd_line,
@@ -276,21 +302,32 @@ int *pids;
 void
 stop_proc (int signum)
 {
+	UNUSED(signum);
 	exit (0);
 }
+
+/*
+ * Notes:
+ * The parallell load code is at best brittle, and seems not to 
+ * have been tested or even built on non-Linux platforms.
+ */
+
+#ifdef HAVE_KILL
 
 void
 kill_load (void)
 {
 	int i;
 	
-#if !defined(U2200) && !defined(DOS)
-	for (i = 0; i < children; i++)
+	for (i = 0; i < children; i++) 
+	{
 		if (pids[i])
-			KILL (pids[i]);
-#endif /* !U2200 && !DOS */
-		return;
+			kill(SIGUSR1, pids[i]);
+	}
+	return;
 }
+
+#endif
 
 /*
 * re-set default output file names 
@@ -373,20 +410,20 @@ load_dists (void)
 * generate a particular table
 */
 void
-gen_tbl (int tnum, long start, long count, long upd_num)
+gen_tbl (int tnum, DSS_HUGE start, DSS_HUGE count, long upd_num)
 {
 	static order_t o;
 	supplier_t supp;
 	customer_t cust;
 	part_t part;
-#ifdef SSBM
+#ifdef SSB
 	date_t dt;
 #else
 	code_t code;
 #endif
 	static int completed = 0;
 	static int init = 0;
-	long i;
+	DSS_HUGE i;
 
 	int rows_per_segment=0;
 	int rows_this_segment=-1;
@@ -402,7 +439,7 @@ gen_tbl (int tnum, long start, long count, long upd_num)
 	{
 		INIT_HUGE(o.okey);
 		for (i=0; i < O_LCNT_MAX; i++)
-#ifdef SSBM
+#ifdef SSB
 			INIT_HUGE(o.lineorders[i].okey);	
 #else
 			INIT_HUGE(o.l[i].okey);
@@ -418,7 +455,7 @@ gen_tbl (int tnum, long start, long count, long upd_num)
 		switch (tnum)
 		{
 		case LINE:
-#ifdef SSBM
+#ifdef SSB
 #else
 		case ORDER:
   		case ORDER_LINE: 
@@ -426,6 +463,7 @@ gen_tbl (int tnum, long start, long count, long upd_num)
 			mk_order (i, &o, upd_num % 10000);
 
 		  if (insert_segments  && (upd_num > 0))
+			{
 			if((upd_num / 10000) < residual_rows)
 				{
 				if((++rows_this_segment) > rows_per_segment) 
@@ -442,30 +480,37 @@ gen_tbl (int tnum, long start, long count, long upd_num)
 					upd_num += 10000;
 					}
 				}
+			}
 
 			if (set_seeds == 0)
+				{
 				if (validate)
 					tdefs[tnum].verify(&o, 0);
 				else
 					tdefs[tnum].loader[direct] (&o, upd_num);
+				}
 			break;
 		case SUPP:
 			mk_supp (i, &supp);
 			if (set_seeds == 0)
+				{
 				if (validate)
 					tdefs[tnum].verify(&supp, 0);
 				else
 					tdefs[tnum].loader[direct] (&supp, upd_num);
+				}
 			break;
 		case CUST:
 			mk_cust (i, &cust);
 			if (set_seeds == 0)
+				{
 				if (validate)
 					tdefs[tnum].verify(&cust, 0);
 				else
 					tdefs[tnum].loader[direct] (&cust, upd_num);
+				}
 			break;
-#ifdef SSBM
+#ifdef SSB
 		case PART:
 #else
 		case PSUPP:
@@ -474,19 +519,23 @@ gen_tbl (int tnum, long start, long count, long upd_num)
 #endif 
 			mk_part (i, &part);
 			if (set_seeds == 0)
+				{
 				if (validate)
 					tdefs[tnum].verify(&part, 0);
 				else
 					tdefs[tnum].loader[direct] (&part, upd_num);
+				}
 			break;
-#ifdef SSBM
+#ifdef SSB
 		case DATE:
 			mk_date (i, &dt);
 			if (set_seeds == 0)
+				{
 				if (validate)
 					tdefs[tnum].verify(&dt, 0);
 				else
 					tdefs[tnum].loader[direct] (&dt, 0);
+				}
 			break;
 #else
 		case NATION:
@@ -510,7 +559,7 @@ gen_tbl (int tnum, long start, long count, long upd_num)
 		row_stop(tnum);
 		if (set_seeds && (i % tdefs[tnum].base) < 2)
 		{
-			printf("\nSeeds for %s at rowcount %ld\n", tdefs[tnum].comment, i);
+			printf("\nSeeds for %s at rowcount " HUGE_FORMAT "\n", tdefs[tnum].comment, i);
 			dump_seeds(tnum);
 		}
 	}
@@ -522,11 +571,11 @@ gen_tbl (int tnum, long start, long count, long upd_num)
 void
 usage (void)
 {
-#ifdef SSBM
+#ifdef SSB
 	fprintf (stderr, "%s\n%s\n\t%s\n%s %s\n\n",
 		"USAGE:",
 		"dbgen [-{vfFD}] [-O {fhmsv}][-T {pcsdla}]",
-		"[-s <scale>][-C <procs>][-S <step>]",
+		"[-s <scale>][-C <chunks>][-S <step>]",
 		"dbgen [-v] [-O {dfhmr}] [-s <scale>]",
 		"[-U <updates>] [-r <percent>]");
 
@@ -534,13 +583,13 @@ usage (void)
 	fprintf (stderr, "%s\n%s\n\t%s\n%s %s\n\n",
 		"USAGE:",
 		"dbgen [-{vfFD}] [-O {fhmsv}][-T {pcsoPSOL}]",
-		"[-s <scale>][-C <procs>][-S <step>]",
+		"[-s <scale>][-C <chunks>][-S <step>]",
 		"dbgen [-v] [-O {dfhmr}] [-s <scale>]",
 		"[-U <updates>] [-r <percent>]");
 #endif
-	fprintf (stderr, "-b <s> -- load distributions for <s>\n");
-	fprintf (stderr, "-C <n> -- use <n> processes to generate data\n");
-	fprintf (stderr, "          [Under DOS, must be used with -S]\n");
+	fprintf (stderr, "-b <s> -- load distributions from file <s> (default: " DIST_DFLT ")\n");
+	fprintf (stderr, "-C <n> -- separate data set into <n> chunks\n");
+	fprintf (stderr, "          (requires -S; default: 1; uses <n> child processes)\n");
 	fprintf (stderr, "-D     -- do database load in line\n");
 	fprintf (stderr, "-d <n> -- split deletes between <n> files\n");
 	fprintf (stderr, "-f     -- force. Overwrite existing files\n");
@@ -555,12 +604,11 @@ usage (void)
 	fprintf (stderr, "-O r   -- generate key ranges for deletes.\n");
 	fprintf (stderr, "-O v   -- Verify data set without generating it.\n");
 	fprintf (stderr, "-q     -- enable QUIET mode\n");
-	fprintf (stderr, "-r <n> -- updates refresh (n/100)%% of the\n");
-	fprintf (stderr, "          data set\n");
+	fprintf (stderr, "-r <n> -- updates refresh (n/100)%% of the data set\n");
 	fprintf (stderr, "-s <n> -- set Scale Factor (SF) to  <n> \n");
 	fprintf (stderr, "-S <n> -- build the <n>th step of the data/update set\n");
 
-#ifdef SSBM
+#ifdef SSB
 	fprintf (stderr, "-T c   -- generate cutomers dimension table ONLY\n");
 	fprintf (stderr, "-T p   -- generate parts dimension table ONLY\n");
 	fprintf (stderr, "-T s   -- generate suppliers dimension table ONLY\n");
@@ -603,7 +651,7 @@ partial (int tbl, int s)
 	
 	if (verbose > 0)
 	{
-		fprintf (stderr, "\tStarting to load stage %d of %d for %s...",
+		fprintf (stderr, "\tStarting to load stage %d of %ld for %s...",
 			s, children, tdefs[tbl].comment);
 	}
 	
@@ -611,7 +659,7 @@ partial (int tbl, int s)
 		set_files (tbl, s);
 	
 	rowcnt = set_state(tbl, scale, children, s, &extra);
-
+        
 	if (s == children)
 		gen_tbl (tbl, rowcnt * (s - 1) + 1, rowcnt + extra, upd_num);
 	else
@@ -623,8 +671,13 @@ partial (int tbl, int s)
 	return (0);
 }
 
-#ifndef DOS
+/*
+ * Notes:
+ * This code is at best brittle, and seems not to have been tested or
+ * even built on non-Linux platforms.
+ */
 
+#ifdef CAN_PARALLELIZE_DATA_GENERATION
 int
 pload (int tbl)
 {
@@ -632,27 +685,29 @@ pload (int tbl)
 	
 	if (verbose > 0)
 	{
-		fprintf (stderr, "Starting %d children to load %s",
+		fprintf (stderr, "Starting %ld children to load %s",
 			children, tdefs[tbl].comment);
 	}
 	for (c = 0; c < children; c++)
 	{
-		pids[c] = SPAWN ();
+		pids[c] = fork();
 		if (pids[c] == -1)
 		{
 			perror ("Child loader not created");
-			kill_load ();
+			kill_load();
 			exit (-1);
 		}
 		else if (pids[c] == 0)	/* CHILD */
 		{
-			SET_HANDLER (stop_proc);
+			signal(SIGUSR1, stop_proc);
 			verbose = 0;
 			partial (tbl, c+1);
 			exit (0);
 		}
 		else if (verbose > 0)			/* PARENT */
+		{
 			fprintf (stderr, ".");
+		}
 	}
 	
 	if (verbose > 0)
@@ -661,7 +716,7 @@ pload (int tbl)
 	c = children;
 	while (c)
 	{
-		i = WAIT (&status, pids[c - 1]);
+		i = wait(&status);
 		if (i == -1 && children)
 		{
 			if (errno == ECHILD)
@@ -689,7 +744,7 @@ pload (int tbl)
 		fprintf (stderr, "done\n");
 	return (0);
 }
-#endif
+#endif /* CAN_PARALLELIZE_DATA_GENERATION */
 
 
 void
@@ -717,6 +772,11 @@ process_options (int count, char **vector)
 			break;
 	  case 'S':				/* generate a particular STEP */
 		  step = atoi (optarg);
+#ifdef SSB
+		  if (step > 1) { 
+			  table &= ~(1 << DATE); 
+		  }
+#endif
 		  break;
 	  case 'v':				/* life noises enabled */
 		  verbose = 1;
@@ -727,7 +787,7 @@ process_options (int count, char **vector)
 	  case 'T':				/* generate a specifc table */
 		  switch (*optarg)
 		  {
-#ifdef SSBM
+#ifdef SSB
 		  case 'c':			/* generate customer ONLY */
 			  table = 1 << CUST;
 			  break;
@@ -742,13 +802,6 @@ process_options (int count, char **vector)
 			  break;  
 		  case 'l':			/* generate lineorder table ONLY */
 			  table = 1 << LINE;
-			  break;
-		  case 'a':
-		          table = 1 << CUST;
-			  table |= 1 << PART;
-			  table |= 1 << SUPP;
-			  table |= 1 << DATE;
-			  table |= 1 << LINE;
 			  break;
 #else
 		  case 'c':			/* generate customer ONLY */
@@ -803,7 +856,7 @@ process_options (int count, char **vector)
 				  scale = 1;
 				  for (i = PART; i < REGION; i++)
 				  {
-					  tdefs[i].base *= flt_scale;
+					  tdefs[i].base = (long) (tdefs[i].base * flt_scale);
 					  if (tdefs[i].base < 1)
 						  tdefs[i].base = 1;
 				  }
@@ -877,6 +930,7 @@ process_options (int count, char **vector)
 			  default:
 				  printf ("ERROR: option '%c' unknown.\n",
 					  *(vector[optind] + 1));
+				  /* fallthrough */
 			  case 'h':				/* something unexpected */
 				  fprintf (stderr,
 					  "%s Population Generator (Version %d.%d.%d%s)\n",
@@ -907,20 +961,28 @@ process_options (int count, char **vector)
 /*
 * MAIN
 *
-* assumes the existance of getopt() to clean up the command 
-* line handling
+* using getopt() to clean up the command line handling
 */
 int
 main (int ac, char **av)
 {
 	int i;
-	
-	table = (1 << CUST) |
+
+	table = 
+#ifdef SSB
+		(1 << CUST) |
+		(1 << PART) |
+		(1 << SUPP) |
+		(1 << DATE) |
+		(1 << LINE);
+#else	
+		(1 << CUST) |
 		(1 << SUPP) |
 		(1 << NATION) |
 		(1 << REGION) |
 		(1 << PART_PSUPP) |
 		(1 << ORDER_LINE);
+#endif
 	force = 0;
 	insert_segments=0;
 	delete_segments=0;
@@ -937,7 +999,7 @@ main (int ac, char **av)
 	updates = 0;
 	refresh = UPD_PCT;
 	step = -1;
-#ifdef SSBM
+#ifdef SSB
 	tdefs[LINE].base *=
 		ORDERS_PER_CUST;			/* have to do this after init */
 #else
@@ -955,11 +1017,8 @@ main (int ac, char **av)
 	children = 1;
 	d_path = NULL;
 	
-#ifdef NO_SUPPORT
-	signal (SIGINT, exit);
-#endif /* NO_SUPPORT */
 	process_options (ac, av);
-#if (defined(WIN32)&&!defined(_POSIX_))
+#if ( defined(WIN32) && !defined(_POSIX_C_SOURCE) )
 	for (i = 0; i < ac; i++)
 	{
 		spawn_args[i] = malloc ((strlen (av[i]) + 1) * sizeof (char));
@@ -992,7 +1051,7 @@ main (int ac, char **av)
 		 */
 		double fix1;
 
-#ifdef SSBM
+#ifdef SSB
 		set_state (LINE, scale, 1, 2, (long *)&i); 
 		fix1 = (double)tdefs[LINE].base / (double)10000; /*represent the %% percentage (n/100)%*/
 #else
@@ -1015,13 +1074,13 @@ main (int ac, char **av)
 		while (upd_num < updates)
 			{
 			if (verbose > 0)
-#ifdef SSBM
+#ifdef SSB
 				fprintf (stderr,
-				"Generating update pair #%d for %s [pid: %d]",
+				"Generating update pair #%ld for %s [pid: %d]",
 				upd_num + 1, tdefs[LINE].comment, DSS_PROC);
 #else
 				fprintf (stderr,
-				"Generating update pair #%d for %s [pid: %d]",
+				"Generating update pair #%ld for %s [pid: %d]",
 				upd_num + 1, tdefs[ORDER_LINE].comment, DSS_PROC);
 
 #endif
@@ -1029,14 +1088,14 @@ main (int ac, char **av)
 			insert_lineitem_segment=0;
 			delete_segment=0;
 			minrow = upd_num * rowcnt + 1;
-#ifdef SSBM
+#ifdef SSB
 			gen_tbl (LINE, minrow, rowcnt, upd_num + 1);
 #else
 			gen_tbl (ORDER_LINE, minrow, rowcnt, upd_num + 1);
 #endif
 			if (verbose > 0)
 				fprintf (stderr, "done.\n");
-#ifdef SSBM
+#ifdef SSB
 			pr_drange (LINE, minrow, rowcnt, upd_num + 1);
 #else
 			pr_drange (ORDER_LINE, minrow, rowcnt, upd_num + 1);
@@ -1073,6 +1132,7 @@ main (int ac, char **av)
 		if (table & (1 << i))
 		{
 			if (children > 1 && i < NATION)
+			{
 				if (step >= 0)
 				{
 					if (validate)
@@ -1082,14 +1142,7 @@ main (int ac, char **av)
 					else
 						partial (i, step);
 				}
-#ifdef DOS
-				else
-				{
-					fprintf (stderr,
-						"Parallel load is not supported on your platform.\n");
-					exit (1);
-				}
-#else
+#ifdef CAN_PARALLELIZE_DATA_GENERATION
 				else
 				{
 					if (validate)
@@ -1097,34 +1150,42 @@ main (int ac, char **av)
 						INTERNAL_ERROR("Cannot validate parallel data generation");
 					}
 					else
-						pload (i);
+						pload(i);
 				}
-#endif /* DOS */
+#else
 				else
 				{
-					minrow = 1;
-					if (i < NATION)
-						rowcnt = tdefs[i].base * scale;
-					else
-						rowcnt = tdefs[i].base;
-#ifdef SSBM
-					if(i==PART){
-					    rowcnt = tdefs[i].base * (floor(1+log((double)(scale))/(log(2))));
-					}
-					if(i==DATE){
-					    rowcnt = tdefs[i].base;
-					}
-#endif
-					if (verbose > 0)
-						fprintf (stderr, "%s data for %s [pid: %ld]",
-						(validate)?"Validating":"Generating", tdefs[i].comment, DSS_PROC);
-					gen_tbl (i, minrow, rowcnt, upd_num);
-					if (verbose > 0)
-						fprintf (stderr, "done.\n");
+					fprintf(stderr,
+						"Parallel load is not supported on your platform currently.\n");
+					exit(1);
 				}
-				if (validate)
-					printf("Validation checksum for %s at %d GB: %0x\n", 
-						 tdefs[i].name, scale, tdefs[i].vtotal);
+#endif /* CAN_PARALLELIZE_DATA_GENERATION */
+			}
+			else
+			{
+				minrow = 1;
+				if (i < NATION)
+					rowcnt = tdefs[i].base * scale;
+				else
+					rowcnt = tdefs[i].base;
+#ifdef SSB
+				if(i==PART){
+					rowcnt = (DSS_HUGE) (tdefs[i].base * (floor(1+log((double)(scale))/(log(2)))));
+				}
+				if(i==DATE){
+					rowcnt = tdefs[i].base;
+				}
+#endif
+				if (verbose > 0)
+					fprintf (stderr, "%s data for %s [pid: %d]: ",
+					(validate)?"Validating":"Generating", tdefs[i].comment, DSS_PROC);
+				gen_tbl (i, minrow, rowcnt, upd_num);
+				if (verbose > 0)
+					fprintf (stderr, "done.\n");
+			}
+			if (validate)
+				printf("Validation checksum for %s at %ld GB: %0lx\n",
+					 tdefs[i].name, scale, tdefs[i].vtotal);
 		}
 			
 		if (direct)
@@ -1132,14 +1193,4 @@ main (int ac, char **av)
 			
 		return (0);
 }
-
-
-
-
-
-
-
-
-
-
 

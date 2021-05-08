@@ -19,6 +19,8 @@
  * set_state() -- initialize the RNG
  */
 
+#include "config.h"
+
 /*this has to be put on top...*/
 #ifdef LINUX
 /* turn on GNU extensions, incl O_DIRECT */
@@ -31,26 +33,41 @@
 #include <time.h>
 #include <errno.h>
 #include <string.h>
-
-#ifdef HP
-#include <strings.h>
-#endif            /* HP */
 #include <ctype.h>
 #include <math.h>
-#ifndef _POSIX_SOURCE
-#include <malloc.h>
-#endif /* POSIX_SOURCE */
 
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif 
+
+#ifdef HAVE_MALLOC_IN_STDLIB
+#include <stdlib.h>
+#elif defined(HAVE_MALLOC_H)
+#include <malloc.h>
+#else
+#error "No place to get the malloc() definition from."
+#endif /* HAVE_MALLOC_IN_STDLIB */
+
+
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif /* HAVE_FCNTL_H */
+
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif /* HAVE_SYS_TYPES_H */
+
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 
 #ifdef IBM
 #include <sys/mode.h>
 #endif /* IBM */
-#include <sys/types.h>
-#include <sys/stat.h>
+
 /* Lines added by Chuck McDevitt for WIN32 support */
 #if	(defined(WIN32)||defined(DOS))
-#ifndef _POSIX_
+#ifndef _POSIX_C_SOURCE
 #include <io.h>
 #ifndef S_ISREG
 
@@ -91,7 +108,6 @@ static char alpha_num[65] =
 #define PROTO(s) ()
 #endif
 
-char     *getenv PROTO((const char *name));
 void usage();
 long *permute_dist(distribution *d, long stream);
 extern long Seed[];
@@ -119,18 +135,23 @@ yes_no(char *prompt)
 {
     char      reply[128];
 
-#ifdef WIN32
+#ifdef _MSC_VER 
 /* Disable warning about conditional expression is constant */ 
 #pragma warning(disable:4127)
 #endif 
 
     while (1)
         {
-#ifdef WIN32
+#ifdef _MSC_VER 
 #pragma warning(default:4127)
 #endif 
         printf("%s [Y/N]: ", prompt);
-        gets(reply);
+        char* ret = fgets(reply, 128, stdin);
+        if (ret == NULL)
+            {
+            perror("Failed reading user response");
+            exit(1);
+            }
         switch (*reply)
             {
             case 'y':
@@ -185,7 +206,7 @@ e_str(distribution *d, int min, int max, int stream, char *dest)
     pick_str(d, stream, strtmp);
     len = strlen(strtmp);
     RANDOM(loc, 0, (strlen(dest) - 1 - len), stream);
-    strncpy(dest + loc, strtmp, len);
+    memcpy(dest + loc, strtmp, len);
 
     return;
 }
@@ -236,14 +257,14 @@ julian(long date)
     offset = date - STARTDATE;
     result = STARTDATE;
 
-#ifdef WIN32
+#ifdef _MSC_VER
 /* Disable warning about conditional expression is constant */ 
 #pragma warning(disable:4127)
 #endif 
 
     while (1)
         {
-#ifdef WIN32 
+#ifdef _MSC_VER
 #pragma warning(default:4127)
 #endif 
         yr = result / 1000;
@@ -355,7 +376,7 @@ long      weight,
 FILE     *
 tbl_open(int tbl, char *mode)
 {
-    char      prompt[256];
+    /* char      prompt[256]; */
     char      fullpath[256];
     FILE     *f;
     struct stat fstats;
@@ -374,34 +395,23 @@ tbl_open(int tbl, char *mode)
         fprintf(stderr, "stat(%s) failed.\n", fullpath);
         exit(-1);
         }
-    if (S_ISREG(fstats.st_mode) && !force && *mode != 'r' )
+    /*if (S_ISREG(fstats.st_mode) && !force && *mode != 'r' )
         {
-        sprintf(prompt, "Do you want to overwrite %s ?", fullpath);
+         sprintf(prompt, "Do you want to overwrite %s ?", fullpath);
         if (!yes_no(prompt))
             exit(0);
-        }
+        } */
 
     if (S_ISFIFO(fstats.st_mode))
         {
+        f = fopen(fullpath, mode);
+        }
+    else
+        {
         retcode =
-            open(fullpath, ((*mode == 'r')?O_RDONLY:O_WRONLY)|O_CREAT);
+            open(fullpath, ((*mode == 'r')?O_RDONLY:O_WRONLY)|O_CREAT, 0664);
         f = fdopen(retcode, mode);
         }
-    else{
-
-#ifdef LINUX
-      /* allow large files on Linux */
-      /*use open to first to get the in fd and apply regular fdopen*/
-
-	/*cheng: Betty mentioned about write mode problem here, added 066*/
-      retcode =
-		  open(fullpath, ((*mode == 'r')?O_RDONLY:O_WRONLY)|O_CREAT|O_LARGEFILE,0644);
-        f = fdopen(retcode, mode);
-#else
-        f = fopen(fullpath, mode);
-#endif
-
-    }
     OPEN_CHECK(f, fullpath);
     if (header && columnar && tdefs[tbl].header != NULL)
         tdefs[tbl].header(f);
@@ -439,11 +449,16 @@ long
 dssncasecmp(char *s1, char *s2, int n)
 {
     for (; n > 0; ++s1, ++s2, --n)
+        {
         if (tolower(*s1) != tolower(*s2))
             return ((tolower(*s1) < tolower(*s2)) ? -1 : 1);
-        else if (*s1 == '\0')
-            return (0);
-        return (0);
+        else
+            {
+            if (*s1 == '\0')
+                return (0);
+            }
+        }
+    return (0);
 }
 
 long
@@ -455,7 +470,7 @@ dsscasecmp(char *s1, char *s2)
     return ((tolower(*s1) < tolower(*s2)) ? -1 : 1);
 }
 
-#ifndef STDLIB_HAS_GETOPT
+#ifndef HAVE_GETOPT
 int optind = 0;
 int opterr = 0;
 char *optarg = NULL;
@@ -517,7 +532,7 @@ getopt(int ac, char **av, char *opt)
         return(*cp);
         }
 }
-#endif /* STDLIB_HAS_GETOPT */
+#endif /* HAVE_GETOPT */
 
 char **
 mk_ascdate(void)
@@ -553,7 +568,9 @@ set_state(int table, long sf, long procs, long step, long *extra_rows)
 	long rowcount, remainder, result;
 	
     if (sf == 0 || step == 0)
+        {
         return(0);
+        }
 
 	rowcount = tdefs[table].base / procs;
 	if ((sf / procs) > (int)MAX_32B_SCALE)
@@ -564,9 +581,14 @@ set_state(int table, long sf, long procs, long step, long *extra_rows)
 	result = rowcount;
 	for (i=0; i < step - 1; i++)
 		{
+		if (tdefs[table].gen_seed == NULL)
+			{
+			/* must be a deterministic table, which doesn't need a random seed. */
+			continue;
+			}
 		if (table == LINE)	/* special case for shared seeds */
 			tdefs[table].gen_seed(1, rowcount);
-		else
+		else if (tdefs[table].gen_seed != NULL)
 			tdefs[table].gen_seed(0, rowcount);
 		/* need to set seeds of child in case there's a dependency */
 		/* NOTE: this assumes that the parent and child have the same base row count */
@@ -575,7 +597,12 @@ set_state(int table, long sf, long procs, long step, long *extra_rows)
 		}
 	*extra_rows = remainder % procs;
 	if (step > procs)	/* moving to the end to generate updates */
-		tdefs[table].gen_seed(*extra_rows);
+		{
+		if (tdefs[table].gen_seed != NULL)
+			{
+			tdefs[table].gen_seed(*extra_rows);
+			}
+		}
 
 	return(result);
 }

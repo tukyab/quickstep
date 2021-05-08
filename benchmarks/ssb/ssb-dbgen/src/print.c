@@ -1,33 +1,29 @@
 /* @(#)print.c	2.1.8.2 */
 /* generate flat files for data load */
+
+#include "config.h"
 #include <stdio.h>
-#ifndef VMS
-#include <sys/types.h>
-#endif
-
-#if defined(SUN)
-#include <unistd.h>
-#endif
-
-#if defined(LINUX)
-#include <unistd.h>
-#endif /*LINUX*/
-
 #include <math.h>
+#include <time.h>
+#include <string.h>
+
+#ifdef HAVE_SYS_TYPES_H // originally #ifndef VMS
+#include <sys/types.h>
+#endif /* HAVE_SYS_TYPES_H */
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif /* HAVE_UNISTD_H */
 
 #include "dss.h"
 #include "dsstypes.h"
-#include <string.h>
-
-#include <stdio.h>
-#include <time.h>
 
 
 /*
  * Function Prototypes
  */
 FILE *print_prep PROTO((int table, int update));
-int pr_drange PROTO((int tbl, long min, long cnt, long num));
+int pr_drange PROTO((int tbl, DSS_HUGE min, DSS_HUGE cnt, long num));
 
 FILE *
 print_prep(int table, int update)
@@ -43,9 +39,9 @@ print_prep(int table, int update)
 				int this_segment;
 				if(strcmp(tdefs[table].name,"orders.tbl"))
 					this_segment=++insert_orders_segment;
-				else
+				else 
 					this_segment=++insert_lineitem_segment;
-				sprintf(upath, "%s%c%s.u%d.%d",
+				sprintf(upath, "%s%c%s.u%d.%d", 
 					env_config(PATH_TAG, PATH_DFLT),
 					PATH_SEP, tdefs[table].name, update%10000,this_segment);
 				}
@@ -81,61 +77,53 @@ dbg_print(int format, FILE *target, void *data, int len, int sep)
 	int dollars,
 		cents;
 
-	char * string = (char *)data;
-	char * ret = string;
-	char * ret2 = string;
-
 	switch(format)
 	{
 	case DT_STR:
 		if (columnar)
+			/* Note: Columnar output cannot be in CSV format, */
+			/* so there's no sense in quoting the string.     */
 			fprintf(target, "%-*s", len, (char *)data);
 		else
+#ifdef DOUBLE_QUOTE_OUTPUT_STRINGS
 			fprintf(target, "\"%s\"", (char *)data);
+#else
+			fprintf(target, "%s", (char *)data);
+#endif
 		break;
 #ifdef MVS
 	case DT_VSTR:
 		/* note: only used in MVS, assumes columnar output */
-		fprintf(target, "%c%c%-*s",
+		fprintf(target, "%c%c%-*s", 
 			(len >> 8) & 0xFF, len & 0xFF, len, (char *)data);
 		break;
 #endif /* MVS */
 	case DT_INT:
 		if (columnar)
-			fprintf(target, "%12ld", (long)data);
+			fprintf(target, "%12ld", *(long *)data);
 		else
-			fprintf(target, "%ld", (long)data);
-		break;
-	case DT_DATE:
-		while (*string) {
-			if (*string != '-') {
-				*ret++ = *string;
-			}
-			string++;
-		}
-		*ret = '\0';
-		fprintf(target, "%ld", atol(ret2));
-		// fprintf(target, "\"%s\"", ret);
+			fprintf(target, "%ld", *(long *)data);
 		break;
 	case DT_HUGE:
 #ifndef SUPPORT_64BITS
-        if (*(long *)((long *)data + 1) == 0) \
+		/* Note: Next block seems to assume little-endian memory order */
+        if (*((long *)data + 1) == 0) \
            if (columnar) fprintf(target, "%12ld", *(long *)data);
            else fprintf(target, "%ld", *(long *)data);
         else
-           if (columnar) fprintf(target, "%5ld%07ld",
-				*(long *)((long *)data + 1), *(long *)data);
-           else fprintf(target,"%ld%07ld",
-				*(long *)((long *)data + 1), *(long *)data);
+           if (columnar) fprintf(target, "%5ld%07ld", 
+				*((long *)data + 1), *(long *)data);
+           else fprintf(target,"%ld%07ld", 
+				*((long *)data + 1), *(long *)data);
 #else
 		fprintf(target, HUGE_FORMAT, *(DSS_HUGE *)data);
 #endif /* SUPPORT_64BITS */
 		break;
 	case DT_KEY:
-		fprintf(target, "%ld", (long)data);
+		fprintf(target, "%ld", *(long *)data);
 		break;
 	case DT_MONEY:
-		cents = (long)data;
+		cents = *(long *)data;
 		if (cents < 0)
 			{
 			fprintf(target, "-");
@@ -144,15 +132,15 @@ dbg_print(int format, FILE *target, void *data, int len, int sep)
 		dollars = cents / 100;
 		cents %= 100;
 		if (columnar)
-			fprintf(target, "%12ld.%02ld", dollars, cents);
+			fprintf(target, "%12d.%02d", dollars, cents);
 		else
-			fprintf(target, "%ld.%02ld", dollars, cents);
+			fprintf(target, "%d.%02d", dollars, cents);
 		break;
 	case DT_CHR:
 		if (columnar)
-			fprintf(target, "%c ", (char)data);
+			fprintf(target, "%c ", *(char *)data);
 		else
-			fprintf(target, "%c", (char)data);
+			fprintf(target, "%c", *(char *)data);
 		break;
 	}
 
@@ -161,29 +149,30 @@ dbg_print(int format, FILE *target, void *data, int len, int sep)
 #endif /* EOL_HANDLING */
 	if (!columnar && (sep != -1))
 		fprintf(target, "%c", SEPARATOR);
-
+	
 	return(0);
 }
 
-#ifdef SSBM
+#ifdef SSB
 int
 pr_cust(customer_t *c, int mode)
 {
 static FILE *fp = NULL;
 
+   UNUSED(mode);
    if (fp == NULL)
         fp = print_prep(CUST, 0);
 
    PR_STRT(fp);
    PR_INT(fp, c->custkey);
    PR_VSTR(fp, c->name, C_NAME_LEN);
-   PR_VSTR(fp, c->address,
+   PR_VSTR(fp, c->address, 
        (columnar)?(long)(ceil(C_ADDR_LEN * V_STR_HGH)):c->alen);
    PR_STR(fp, c->city,CITY_FIX);
    PR_STR(fp, c->nation_name, C_NATION_NAME_LEN);
    PR_STR(fp, c->region_name, C_REGION_NAME_LEN);
    PR_STR(fp, c->phone, PHONE_LEN);
-   PR_STR(fp, c->mktsegment,MAXAGG_LEN);
+   PR_VSTR_LAST(fp, c->mktsegment,MAXAGG_LEN);
    PR_END(fp);
 
    return(0);
@@ -194,20 +183,20 @@ int
 pr_cust(customer_t *c, int mode)
 {
 static FILE *fp = NULL;
-
+        
    if (fp == NULL)
         fp = print_prep(CUST, 0);
 
    PR_STRT(fp);
    PR_INT(fp, c->custkey);
    PR_VSTR(fp, c->name, C_NAME_LEN);
-   PR_VSTR(fp, c->address,
+   PR_VSTR(fp, c->address, 
        (columnar)?(long)(ceil(C_ADDR_LEN * V_STR_HGH)):c->alen);
    PR_INT(fp, c->nation_code);
    PR_STR(fp, c->phone, PHONE_LEN);
    PR_MONEY(fp, c->acctbal);
    PR_STR(fp, c->mktsegment, C_MSEG_LEN);
-   PR_VSTR_LAST(fp, c->comment,
+   PR_VSTR_LAST(fp, c->comment, 
        (columnar)?(long)(ceil(C_CMNT_LEN * V_STR_HGH)):c->clen);
    PR_END(fp);
 
@@ -216,9 +205,9 @@ static FILE *fp = NULL;
 #endif
 
 /*
- * print the numbered order
+ * print the numbered order 
  */
-#ifdef SSBM
+#ifdef SSB
 
 #else
 int
@@ -226,10 +215,10 @@ pr_order(order_t *o, int mode)
 {
     static FILE *fp_o = NULL;
     static int last_mode = 0;
-
+        
     if (fp_o == NULL || mode != last_mode)
         {
-        if (fp_o)
+        if (fp_o) 
             fclose(fp_o);
         fp_o = print_prep(ORDER, mode);
         last_mode = mode;
@@ -243,7 +232,7 @@ pr_order(order_t *o, int mode)
     PR_STR(fp_o, o->opriority, O_OPRIO_LEN);
     PR_STR(fp_o, o->clerk, O_CLRK_LEN);
     PR_INT(fp_o, o->spriority);
-    PR_VSTR_LAST(fp_o, o->comment,
+    PR_VSTR_LAST(fp_o, o->comment, 
        (columnar)?(long)(ceil(O_CMNT_LEN * V_STR_HGH)):o->clen);
     PR_END(fp_o);
 
@@ -254,7 +243,7 @@ pr_order(order_t *o, int mode)
 /*
  * print an order's lineitems
  */
-#ifdef SSBM
+#ifdef SSB
 int
 pr_line(order_t *o, int mode)
 {
@@ -262,12 +251,12 @@ pr_line(order_t *o, int mode)
     static FILE *fp_l = NULL;
     static int last_mode = 0;
     long      i;
-    int days;
-    char buf[100];
+    /* int days; */
+    /* char buf[100]; */
 
     if (fp_l == NULL || mode != last_mode)
         {
-        if (fp_l)
+        if (fp_l) 
             fclose(fp_l);
         fp_l = print_prep(LINE, mode);
         last_mode = mode;
@@ -281,7 +270,7 @@ pr_line(order_t *o, int mode)
 	PR_INT(fp_l, o->lineorders[i].custkey);
 	PR_INT(fp_l, o->lineorders[i].partkey);
         PR_INT(fp_l, o->lineorders[i].suppkey);
-        PR_D(fp_l, o->lineorders[i].orderdate);
+        PR_STR(fp_l, o->lineorders[i].orderdate, DATE_LEN);
 	PR_STR(fp_l, o->lineorders[i].opriority, O_OPRIO_LEN);
 	PR_INT(fp_l, o->lineorders[i].ship_priority);
         PR_INT(fp_l, o->lineorders[i].quantity);
@@ -291,8 +280,8 @@ pr_line(order_t *o, int mode)
         PR_INT(fp_l, o->lineorders[i].revenue);
 	PR_INT(fp_l, o->lineorders[i].supp_cost);
 	PR_INT(fp_l, o->lineorders[i].tax);
-	PR_D(fp_l, o->lineorders[i].commit_date);
-	PR_STR(fp_l, o->lineorders[i].shipmode, O_SHIP_MODE_LEN);
+	PR_STR(fp_l, o->lineorders[i].commit_date, DATE_LEN);
+	PR_VSTR_LAST(fp_l, o->lineorders[i].shipmode, O_SHIP_MODE_LEN);
         PR_END(fp_l);
         }
 
@@ -310,7 +299,7 @@ pr_line(order_t *o, int mode)
 
     if (fp_l == NULL || mode != last_mode)
         {
-        if (fp_l)
+        if (fp_l) 
             fclose(fp_l);
         fp_l = print_prep(LINE, mode);
         last_mode = mode;
@@ -334,7 +323,7 @@ pr_line(order_t *o, int mode)
         PR_STR(fp_l, o->l[i].rdate, DATE_LEN);
         PR_STR(fp_l, o->l[i].shipinstruct, L_INST_LEN);
         PR_STR(fp_l, o->l[i].shipmode, L_SMODE_LEN);
-        PR_VSTR_LAST(fp_l, o->l[i].comment,
+        PR_VSTR_LAST(fp_l, o->l[i].comment, 
             (columnar)?(long)(ceil(L_CMNT_LEN *
         V_STR_HGH)):o->l[i].clen);
         PR_END(fp_l);
@@ -347,7 +336,7 @@ pr_line(order_t *o, int mode)
 /*
  * print the numbered order *and* its associated lineitems
  */
-#ifdef SSBM
+#ifdef SSB
 #else
 int
 pr_order_line(order_t *o, int mode)
@@ -363,12 +352,13 @@ pr_order_line(order_t *o, int mode)
 /*
  * print the given part
  */
-#ifdef SSBM
+#ifdef SSB
 int
 pr_part(part_t *part, int mode)
 {
     static FILE *p_fp = NULL;
 
+    UNUSED(mode);
     if (p_fp == NULL)
 	p_fp = print_prep(PART, 0);
 
@@ -385,7 +375,7 @@ pr_part(part_t *part, int mode)
     PR_VSTR(p_fp, part->type,
 	    (columnar)?(long)P_TYPE_LEN:part->tlen);
     PR_INT(p_fp, part->size);
-    PR_STR(p_fp, part->container, P_CNTR_LEN);
+    PR_VSTR_LAST(p_fp, part->container, P_CNTR_LEN);
     PR_END(p_fp);
     return(0);
 }
@@ -410,7 +400,7 @@ static FILE *p_fp = NULL;
    PR_INT(p_fp, part->size);
    PR_STR(p_fp, part->container, P_CNTR_LEN);
    PR_MONEY(p_fp, part->retailprice);
-   PR_VSTR_LAST(p_fp, part->comment,
+   PR_VSTR_LAST(p_fp, part->comment, 
        (columnar)?(long)(ceil(P_CMNT_LEN * V_STR_HGH)):part->clen);
    PR_END(p_fp);
 
@@ -421,8 +411,8 @@ static FILE *p_fp = NULL;
 /*
  * print the given part's suppliers
  */
-#ifdef SSBM
-/*SSBM don't have partsupplier table*/
+#ifdef SSB
+/*SSB don't have partsupplier table*/       
 #else
 int
 pr_psupp(part_t *part, int mode)
@@ -440,7 +430,7 @@ pr_psupp(part_t *part, int mode)
       PR_INT(ps_fp, part->s[i].suppkey);
       PR_INT(ps_fp, part->s[i].qty);
       PR_MONEY(ps_fp, part->s[i].scost);
-      PR_VSTR_LAST(ps_fp, part->s[i].comment,
+      PR_VSTR_LAST(ps_fp, part->s[i].comment, 
        (columnar)?(long)(ceil(PS_CMNT_LEN * V_STR_HGH)):part->s[i].clen);
       PR_END(ps_fp);
       }
@@ -452,8 +442,8 @@ pr_psupp(part_t *part, int mode)
 /*
  * print the given part *and* its suppliers
  */
-#ifdef SSBM
-/*SSBM don't have partsupplier table*/
+#ifdef SSB
+/*SSB don't have partsupplier table*/       
 #else
 int
 pr_part_psupp(part_t *part, int mode)
@@ -467,7 +457,7 @@ pr_part_psupp(part_t *part, int mode)
 #endif
 
 
-#ifdef SSBM
+#ifdef SSB
 int
 pr_supp(supplier_t *supp, int mode)
 {
@@ -479,13 +469,13 @@ pr_supp(supplier_t *supp, int mode)
     PR_STRT(fp);
     PR_INT(fp, supp->suppkey);
     PR_STR(fp, supp->name, S_NAME_LEN);
-
+    
     PR_VSTR(fp, supp->address,
 	    (columnar)?(long)(ceil(S_ADDR_LEN * V_STR_HGH)):supp->alen);
     PR_STR(fp, supp->city, CITY_FIX);
     PR_STR(fp, supp->nation_name, C_NATION_NAME_LEN);
     PR_STR(fp, supp->region_name, C_REGION_NAME_LEN);
-    PR_STR(fp, supp->phone, PHONE_LEN);
+    PR_VSTR_LAST(fp, supp->phone, PHONE_LEN);
     PR_END(fp);
 
     return(0);
@@ -495,19 +485,19 @@ int
 pr_supp(supplier_t *supp, int mode)
 {
 static FILE *fp = NULL;
-
+        
    if (fp == NULL)
         fp = print_prep(SUPP, mode);
 
    PR_STRT(fp);
    PR_INT(fp, supp->suppkey);
    PR_STR(fp, supp->name, S_NAME_LEN);
-   PR_VSTR(fp, supp->address,
+   PR_VSTR(fp, supp->address, 
        (columnar)?(long)(ceil(S_ADDR_LEN * V_STR_HGH)):supp->alen);
    PR_INT(fp, supp->nation_code);
    PR_STR(fp, supp->phone, PHONE_LEN);
    PR_MONEY(fp, supp->acctbal);
-   PR_VSTR_LAST(fp, supp->comment,
+   PR_VSTR_LAST(fp, supp->comment, 
        (columnar)?(long)(ceil(S_CMNT_LEN * V_STR_HGH)):supp->clen);
    PR_END(fp);
 
@@ -515,13 +505,13 @@ static FILE *fp = NULL;
 }
 #endif
 
-#ifdef SSBM
+#ifdef SSB
 #else
 int
 pr_nation(code_t *c, int mode)
 {
 static FILE *fp = NULL;
-
+        
    if (fp == NULL)
         fp = print_prep(NATION, mode);
 
@@ -529,7 +519,7 @@ static FILE *fp = NULL;
    PR_INT(fp, c->code);
    PR_STR(fp, c->text, NATION_LEN);
    PR_INT(fp, c->join);
-   PR_VSTR_LAST(fp, c->comment,
+   PR_VSTR_LAST(fp, c->comment, 
        (columnar)?(long)(ceil(N_CMNT_LEN * V_STR_HGH)):c->clen);
    PR_END(fp);
 
@@ -540,14 +530,14 @@ int
 pr_region(code_t *c, int mode)
 {
 static FILE *fp = NULL;
-
+        
    if (fp == NULL)
         fp = print_prep(REGION, mode);
 
    PR_STRT(fp);
    PR_INT(fp, c->code);
    PR_STR(fp, c->text, REGION_LEN);
-   PR_VSTR_LAST(fp, c->comment,
+   PR_VSTR_LAST(fp, c->comment, 
        (columnar)?(long)(ceil(R_CMNT_LEN * V_STR_HGH)):c->clen);
    PR_END(fp);
 
@@ -555,16 +545,16 @@ static FILE *fp = NULL;
 }
 #endif
 
-/*
+/* 
  * NOTE: this routine does NOT use the BCD2_* routines. As a result,
  * it WILL fail if the keys being deleted exceed 32 bits. Since this
  * would require ~660 update iterations, this seems an acceptable
  * oversight
  */
 int
-pr_drange(int tbl, long min, long cnt, long num)
+pr_drange(int tbl, DSS_HUGE min, DSS_HUGE cnt, long num)
 {
-    static int  last_num = 0;
+    static long  last_num = 0;
     static FILE *dfp = NULL;
     int child = -1;
     long start, last, new;
@@ -596,15 +586,15 @@ pr_drange(int tbl, long min, long cnt, long num)
             }
 	if (gen_sql)
 	    {
-	    fprintf(dfp,
+	    fprintf(dfp, 
 		"delete from %s where %s between %ld and %ld;\n",
 		    tdefs[ORDER].name, "o_orderkey", start, last);
-	    fprintf(dfp,
+	    fprintf(dfp, 
 		"delete from %s where %s between %ld and %ld;\n",
 		    tdefs[LINE].name, "l_orderkey", start, last);
 	    fprintf(dfp, "commit work;\n");
 	    }
-	else
+	else 
 	    if (gen_rng)
                 {
                 PR_STRT(dfp);
@@ -659,19 +649,29 @@ pr_drange(int tbl, long min, long cnt, long num)
 	PR_INT(dfp, last);
 	PR_END(dfp);
 	}
-
+    
     return(0);
 }
 
-#ifdef SSBM
+#ifdef SSB
 int pr_date(date_t *d, int mode){
     static FILE *d_fp = NULL;
-
+    
+    UNUSED(mode);
     if (d_fp == NULL)
 	d_fp = print_prep(DATE, 0);
 
     PR_STRT(d_fp);
-    PR_INT(d_fp, d->datekey);
+    char formatted_date[DATE_LEN];
+#if __GNUC__ >= 8
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
+#endif
+    PR_DATE(formatted_date, d->year-1900, d->monthnuminyear, d->daynuminmonth);
+#if __GNUC__ >= 8
+#pragma GCC diagnostic pop
+#endif
+    PR_STR(d_fp, formatted_date, DATE_LEN);
     PR_STR(d_fp, d->date,D_DATE_LEN);
     PR_STR(d_fp, d->dayofweek,D_DAYWEEK_LEN);
     PR_STR(d_fp, d->month,D_MONTH_LEN);
@@ -683,12 +683,12 @@ int pr_date(date_t *d, int mode){
     PR_INT(d_fp, d->daynuminyear);
     PR_INT(d_fp, d->monthnuminyear);
     PR_INT(d_fp, d->weeknuminyear);
-    PR_VSTR(d_fp,
+    PR_VSTR(d_fp, 
 	    d->sellingseason,(columnar)?(long)D_SEASON_LEN:d->slen);
     PR_STR(d_fp,d->lastdayinweekfl,2);
     PR_STR(d_fp,d->lastdayinmonthfl,2);
     PR_STR(d_fp,d->holidayfl,2);
-    PR_STR(d_fp,d->weekdayfl,2);
+    PR_VSTR_LAST(d_fp,d->weekdayfl,2);
 
     PR_END(d_fp);
     return(0);
@@ -697,14 +697,15 @@ int pr_date(date_t *d, int mode){
 
 #endif
 /*
- * verify functions: routines which replace the pr_routines and generate a pseudo checksum
- * instead of generating the actual contents of the tables. Meant to allow large scale data
+ * verify functions: routines which replace the pr_routines and generate a pseudo checksum 
+ * instead of generating the actual contents of the tables. Meant to allow large scale data 
  * validation without requiring a large amount of storage
  */
-#ifdef SSBM
+#ifdef SSB
 int
 vrf_cust(customer_t *c, int mode)
 {
+   UNUSED(mode);
    VRF_STRT(CUST);
    VRF_INT(CUST, c->custkey);
    VRF_STR(CUST, c->name);
@@ -739,9 +740,9 @@ vrf_cust(customer_t *c, int mode)
 #endif
 
 /*
- * print the numbered order
+ * print the numbered order 
  */
-#ifdef SSBM
+#ifdef SSB
 #else
 int
 vrf_order(order_t *o, int mode)
@@ -765,12 +766,13 @@ vrf_order(order_t *o, int mode)
 /*
  * print an order's lineitems
  */
-#ifdef SSBM
+#ifdef SSB
 int
 vrf_line(order_t *o, int mode)
 {
     int i;
 
+    UNUSED(mode);
     for (i = 0; i < o->lines; i++)
         {
 	    VRF_STRT(LINE);
@@ -832,7 +834,7 @@ vrf_line(order_t *o, int mode)
 /*
  * print the numbered order *and* its associated lineitems
  */
-#ifdef SSBM
+#ifdef SSB
 #else
 int
 vrf_order_line(order_t *o, int mode)
@@ -847,11 +849,12 @@ vrf_order_line(order_t *o, int mode)
 /*
  * print the given part
  */
-#ifdef SSBM
+#ifdef SSB
 int
 vrf_part(part_t *part, int mode)
 {
 
+    UNUSED(mode);
     VRF_STRT(PART);
     VRF_INT(PART, part->partkey);
     VRF_STR(PART, part->name);
@@ -890,7 +893,7 @@ vrf_part(part_t *part, int mode)
 /*
  * print the given part's suppliers
  */
-#ifdef SSBM
+#ifdef SSB
 #else
 int
 vrf_psupp(part_t *part, int mode)
@@ -915,7 +918,7 @@ vrf_psupp(part_t *part, int mode)
 /*
  * print the given part *and* its suppliers
  */
-#ifdef SSBM
+#ifdef SSB
 #else
 int
 vrf_part_psupp(part_t *part, int mode)
@@ -927,14 +930,15 @@ vrf_part_psupp(part_t *part, int mode)
 }
 #endif
 
-#ifdef SSBM
+#ifdef SSB
 int
 vrf_supp(supplier_t *supp, int mode)
 {
+    UNUSED(mode);
     VRF_STRT(SUPP);
     VRF_INT(SUPP, supp->suppkey);
     VRF_STR(SUPP, supp->name);
-
+    
     VRF_STR(CUST, supp->address);
     VRF_INT(CUST, supp->nation_key);
     VRF_STR(CUST, supp->nation_name);
@@ -957,14 +961,14 @@ vrf_supp(supplier_t *supp, int mode)
    VRF_INT(SUPP, supp->nation_code);
    VRF_STR(SUPP, supp->phone);
    VRF_MONEY(SUPP, supp->acctbal);
-   VRF_STR(SUPP, supp->comment);
+   VRF_STR(SUPP, supp->comment); 
    VRF_END(SUPP);
 
    return(0);
 }
 #endif
 
-#ifdef SSBM
+#ifdef SSB
 #else
 int
 vrf_nation(code_t *c, int mode)
@@ -993,9 +997,10 @@ vrf_region(code_t *c, int mode)
 #endif
 
 
-#ifdef SSBM
+#ifdef SSB
 int vrf_date(date_t * d, int mode)
 {
+    UNUSED(mode);
     VRF_STRT(DATE);
     VRF_INT(DATE, d->datekey);
     VRF_STR(DATE, d->date);
@@ -1018,3 +1023,4 @@ int vrf_date(date_t * d, int mode)
 
 }
 #endif
+
