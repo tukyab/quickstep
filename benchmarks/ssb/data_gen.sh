@@ -15,4 +15,6 @@ DBGEN=`pwd`/dbgen
 cd $LOC
 
 $DBGEN -v -s $SCALE
+
+mv date.tbl datetable.tbl
 popd
