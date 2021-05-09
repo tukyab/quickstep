@@ -103,6 +103,24 @@ class TableGeneratorOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  std::string getAttribute() const {
+    bool first = true;
+    std::string attrs = "";
+    for (CatalogRelationSchema::const_iterator it = output_relation_.begin();
+         it != output_relation_.end();
+         ++it) {
+       if (first) {
+         first = false;
+       } else {
+         attrs += ", ";
+       }
+      attrs += "{\"relation\":" + std::to_string(output_relation_.getID()) + \
+        ", \"attribute\": " + \
+        std::to_string(it->getID()) + "}";
+    }
+    return attrs;
+  }
+
  private:
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;

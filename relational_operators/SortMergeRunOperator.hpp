@@ -170,6 +170,14 @@ class SortMergeRunOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  QueryContext::sort_config_id getSortConfig() const {
+    return sort_config_index_;
+  }
+  
+  const CatalogRelation& input_relation() const {
+    return input_relation_;
+  }
+
  private:
   // Initialize runs for the first pass. This needs to be called every time new
   // blocks are input to the operator in the case of pipelined input.

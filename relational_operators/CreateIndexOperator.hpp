@@ -101,6 +101,26 @@ class CreateIndexOperator : public RelationalOperator {
     relation_->addIndex(index_name_, std::move(index_description_));
   }
 
+  const CatalogRelation* input_relation() const {
+    return relation_;
+  }
+
+  std::string getAttribute() const {
+    bool first = true;
+    std::string attrs = "";
+    for (int i = 0; i < index_description_.indexed_attribute_ids_size(); ++i) {
+      if (first) {
+        first = false;
+      } else {
+        attrs += ", ";
+      }
+      attrs += "{\"relation\":" + std::to_string(relation_->getID()) + \
+        ", \"attribute\": " + \
+        std::to_string(index_description_.indexed_attribute_ids(i)) + "}";
+    }
+    return attrs;
+  }
+
  private:
   CatalogRelation *relation_;
   const std::string index_name_;

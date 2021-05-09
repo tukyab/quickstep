@@ -35,6 +35,14 @@
 #include "relational_operators/SelectOperator.hpp"
 #include "relational_operators/SortRunGenerationOperator.hpp"
 #include "relational_operators/UnionAllOperator.hpp"
+// #include "relational_operators/SortMergeRunOperator.hpp"
+// #include "relational_operators/SampleOperator.hpp"
+// #include "relational_operators/TableExportOperator.hpp"
+// #include "relational_operators/UpdateOperator.hpp"
+// #include "relational_operators/WindowAggregationOperator.hpp"
+// #include "relational_operators/BuildAggregationExistenceMapOperator.hpp"
+// #include "relational_operators/CreateIndexOperator.hpp"
+// #include "relational_operators/DeleteOperator.hpp"
 
 namespace quickstep {
 
@@ -81,6 +89,13 @@ class QueryPlan {
         input_relation_info = "input";
         break;
       }
+      // case RelationalOperator::kBuildAggregationExistenceMap: {
+      //   const BuildAggregationExistenceMapOperator &build_agg_op =
+      //       static_cast<const BuildAggregationExistenceMapOperator&>(*relational_operator);
+      //   input_relation = &build_agg_op.input_relation();
+      //   input_relation_info = "input";
+      //   break;
+      // }
       case RelationalOperator::kBuildHash: {
         const BuildHashOperator &build_hash_op =
             static_cast<const BuildHashOperator&>(*relational_operator);
@@ -95,6 +110,20 @@ class QueryPlan {
         input_relation_info = "input";
         break;
       }
+      // case RelationalOperator::kCreateIndex: {
+      //   const CreateIndexOperator &create_index_op =
+      //       static_cast<const CreateIndexOperator&>(*relational_operator);
+      //   input_relation = create_index_op.input_relation();
+      //   input_relation_info = "input";
+      //   break;
+      // }
+      // case RelationalOperator::kDelete: {
+      //   const DeleteOperator &delete_op =
+      //       static_cast<const DeleteOperator&>(*relational_operator);
+      //   input_relation = &delete_op.input_relation();
+      //   input_relation_info = "input";
+      //   break;
+      // }
       case RelationalOperator::kInnerJoin:
       case RelationalOperator::kLeftAntiJoin:
       case RelationalOperator::kLeftOuterJoin:
@@ -140,6 +169,13 @@ class QueryPlan {
         }
         break;
       }
+      // case RelationalOperator::kSample: {
+      //   const SampleOperator &sample_op =
+      //             static_cast<const SampleOperator&>(*relational_operator);
+      //   input_relation = &sample_op.input_relation();
+      //   input_relation_info = "input";
+      //   break;
+      // }
       case RelationalOperator::kSelect: {
         const SelectOperator &select_op =
             static_cast<const SelectOperator&>(*relational_operator);
@@ -147,6 +183,13 @@ class QueryPlan {
         input_relation_info = "input";
         break;
       }
+      // case RelationalOperator::kSortMergeRun: {
+      //   const SortMergeRunOperator &sort_op =
+      //       static_cast<const SortMergeRunOperator&>(*relational_operator);
+      //   input_relation = &sort_op.input_relation();
+      //   input_relation_info = "input";
+      //   break;
+      // }
       case RelationalOperator::kSortRunGeneration: {
         const SortRunGenerationOperator &sort_op =
             static_cast<const SortRunGenerationOperator&>(*relational_operator);
@@ -154,6 +197,13 @@ class QueryPlan {
         input_relation_info = "input";
         break;
       }
+      // case RelationalOperator::kTableExport: {
+      //   const TableExportOperator &table_export_op =
+      //       static_cast<const TableExportOperator&>(*relational_operator);
+      //   input_relation = &table_export_op.input_relation();
+      //   input_relation_info = "input";
+      //   break;
+      // }
       case RelationalOperator::kUnionAll: {
         const UnionAllOperator &union_all_op = static_cast<const UnionAllOperator&>(*relational_operator);
 
@@ -185,6 +235,20 @@ class QueryPlan {
         }
         break;
       }
+      // case RelationalOperator::kUpdate: {
+      //   const UpdateOperator &update_op =
+      //       static_cast<const UpdateOperator&>(*relational_operator);
+      //   input_relation = &update_op.input_relation();
+      //   input_relation_info = "input";
+      //   break;
+      // }
+      // case RelationalOperator::kWindowAggregation: {
+      //   const WindowAggregationOperator &aggregation_op =
+      //             static_cast<const WindowAggregationOperator&>(*relational_operator);
+      //   input_relation = &aggregation_op.input_relation();
+      //   input_relation_info = "input";
+      //   break;
+      // }
       default:
         break;
     }

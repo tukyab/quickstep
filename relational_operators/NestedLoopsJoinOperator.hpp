@@ -192,6 +192,14 @@ class NestedLoopsJoinOperator : public RelationalOperator {
     return right_input_relation_;
   }
 
+  QueryContext::predicate_id getPredicateId() const {
+    return join_predicate_index_;
+  }
+
+  QueryContext::scalar_group_id getSelectionId() const {
+    return selection_index_;
+  }
+
  private:
   /**
    * @brief Pairs block IDs from left and right relation block IDs and generates

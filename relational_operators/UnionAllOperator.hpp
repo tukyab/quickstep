@@ -143,6 +143,26 @@ class UnionAllOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
+  std::string getAttribute() const {
+    bool first = true;
+    std::string attrs = "";
+    for (const auto ir : input_relations_) {
+      for (CatalogRelationSchema::const_iterator it = ir->begin();
+           it != ir->end();
+           ++it) {
+         if (first) {
+           first = false;
+         } else {
+           attrs += ", ";
+         }
+        attrs += "{\"relation\":" + std::to_string(ir->getID()) + \
+          ", \"attribute\": " + \
+          std::to_string(it->getID()) + "}";
+      }
+    }
+    return attrs;
+  }
+
  private:
   // Add work orders for a single relation.
   void addWorkOrdersSingleRelation(WorkOrdersContainer *container,

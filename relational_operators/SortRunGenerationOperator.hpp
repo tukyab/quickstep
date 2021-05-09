@@ -149,6 +149,10 @@ class SortRunGenerationOperator : public RelationalOperator {
     return input_relation_;
   }
 
+  QueryContext::sort_config_id getSortConfig() const {
+    return sort_config_index_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

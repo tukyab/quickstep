@@ -124,6 +124,14 @@ class DeleteOperator : public RelationalOperator {
     relation_block_ids_[part_id].push_back(input_block_id);
   }
 
+  const CatalogRelation& input_relation() const {
+    return relation_;
+  }
+
+  QueryContext::predicate_id getPredicateId() const {
+    return predicate_index_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

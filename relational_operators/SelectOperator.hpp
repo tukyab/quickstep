@@ -224,6 +224,29 @@ class SelectOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  QueryContext::predicate_id getPredicateId() const {
+    return predicate_index_;
+  }
+
+  QueryContext::scalar_group_id getSelectionId() const {
+    return selection_index_;
+  }
+
+  std::string getSelectAttributes() const {
+    bool first = true;
+    std::string attrs = "";
+    for (attribute_id attr : simple_selection_) {
+       if (first) {
+         first = false;
+       } else {
+         attrs += ", ";
+       }
+      attrs += "{\"relation\":" + std::to_string(input_relation_.getID()) + \
+        ", \"attribute\": " + std::to_string(attr) + "}";
+    }
+    return attrs;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

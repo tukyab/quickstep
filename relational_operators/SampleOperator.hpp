@@ -125,6 +125,28 @@ class SampleOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  const CatalogRelation& input_relation() const {
+    return input_relation_;
+  }
+
+  std::string getAttribute() const {
+    bool first = true;
+    std::string attrs = "";
+    for (CatalogRelationSchema::const_iterator it = input_relation_.begin();
+         it != input_relation_.end();
+         ++it) {
+       if (first) {
+         first = false;
+       } else {
+         attrs += ", ";
+       }
+      attrs += "{\"relation\":" + std::to_string(input_relation_.getID()) + \
+        ", \"attribute\": " + \
+        std::to_string(it->getID()) + "}";
+    }
+    return attrs;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

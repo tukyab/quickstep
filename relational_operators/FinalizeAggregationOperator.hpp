@@ -109,6 +109,10 @@ class FinalizeAggregationOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  QueryContext::aggregation_state_id getAggregationId() const {
+    return aggr_state_index_;
+  }
+
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
   const std::size_t aggr_state_num_partitions_;

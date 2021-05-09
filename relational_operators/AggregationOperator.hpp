@@ -124,6 +124,10 @@ class AggregationOperator : public RelationalOperator {
     input_relation_block_ids_[part_id].push_back(input_block_id);
   }
 
+  QueryContext::aggregation_state_id getAggregationId() const {
+    return aggr_state_index_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

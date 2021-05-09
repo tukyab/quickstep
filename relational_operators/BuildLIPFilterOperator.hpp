@@ -132,6 +132,10 @@ class BuildLIPFilterOperator : public RelationalOperator {
     input_relation_block_ids_[part_id].push_back(input_block_id);
   }
 
+  QueryContext::predicate_id getPredicateId() const {
+    return build_side_predicate_index_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

@@ -130,6 +130,10 @@ class BuildAggregationExistenceMapOperator : public RelationalOperator {
     input_relation_block_ids_[part_id].push_back(input_block_id);
   }
 
+  const attribute_id getAttribute() const {
+    return build_attribute_;
+  }
+
  private:
   serialization::WorkOrder* createWorkOrderProto(const block_id block, const partition_id part_id);
 

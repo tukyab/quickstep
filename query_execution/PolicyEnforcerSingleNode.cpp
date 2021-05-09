@@ -45,6 +45,24 @@
 #include "relational_operators/SelectOperator.hpp"
 #include "relational_operators/SortRunGenerationOperator.hpp"
 #include "relational_operators/UnionAllOperator.hpp"
+#include "relational_operators/BuildAggregationExistenceMapOperator.hpp"
+#include "relational_operators/BuildHashOperator.hpp"
+#include "relational_operators/CreateIndexOperator.hpp"
+#include "relational_operators/DeleteOperator.hpp"
+#include "relational_operators/DestroyAggregationStateOperator.hpp"
+#include "relational_operators/FinalizeAggregationOperator.hpp"
+#include "relational_operators/InitializeAggregationOperator.hpp"
+#include "relational_operators/InsertOperator.hpp"
+#include "relational_operators/NestedLoopsJoinOperator.hpp"
+#include "relational_operators/SampleOperator.hpp"
+#include "relational_operators/SelectOperator.hpp"
+#include "relational_operators/SortMergeRunOperator.hpp"
+#include "relational_operators/SortRunGenerationOperator.hpp"
+#include "relational_operators/TableExportOperator.hpp"
+#include "relational_operators/TableGeneratorOperator.hpp"
+#include "relational_operators/UnionAllOperator.hpp"
+#include "relational_operators/UpdateOperator.hpp"
+#include "relational_operators/WindowAggregationOperator.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -274,34 +292,187 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
       }
       txt << "]";
 
-      // input relation
       txt << ", \"input relations\": ["
           << input_relations[node_index]
           << "]";
 
-      /*txt << ", \"input relations\": [";
-      const CatalogRelationSchema *input_relation = nullptr;
-      std::string input_relation_info;
+      const RelationalOperator::OperatorType node_type = node.getOperatorType();
+      std::string attrs = "";
       switch (node_type) {
         case RelationalOperator::kAggregation: {
           const AggregationOperator &aggregation_op =
-              static_cast<const AggregationOperator&>(node);
-          input_relation = &aggregation_op.input_relation();
-          input_relation_info = "input";
+                    static_cast<const AggregationOperator&>(node);
+          if (query_handle->getQueryContextProto().aggregation_states_size() > 0
+                && aggregation_op.getAggregationId() > 0) {
+            attrs = replaceQuote(query_handle->getQueryContextProto().aggregation_states(
+              aggregation_op.getAggregationId()).aggregation_state().ShortDebugString());
+          }
           break;
         }
         case RelationalOperator::kBuildHash: {
           const BuildHashOperator &build_hash_op =
               static_cast<const BuildHashOperator&>(node);
-          input_relation = &build_hash_op.input_relation();
-          input_relation_info = "input";
+          if (query_handle->getQueryContextProto().predicates_size() > 0
+                && build_hash_op.getPredicateId() > 0) {
+            attrs = replaceQuote(query_handle->getQueryContextProto().predicates(
+              build_hash_op.getPredicateId()).ShortDebugString());
+          }
           break;
         }
         case RelationalOperator::kBuildLIPFilter: {
           const BuildLIPFilterOperator &build_lip_filter_op =
               static_cast<const BuildLIPFilterOperator&>(node);
-          input_relation = &build_lip_filter_op.input_relation();
-          input_relation_info = "input";
+          if (query_handle->getQueryContextProto().predicates_size() > 0
+                && build_lip_filter_op.getPredicateId() > 0) {
+            attrs = replaceQuote(query_handle->getQueryContextProto().predicates(
+              build_lip_filter_op.getPredicateId()).ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kDelete: {
+          const DeleteOperator &delete_op =
+              static_cast<const DeleteOperator&>(node);
+          if (query_handle->getQueryContextProto().predicates_size() > 0
+                && delete_op.getPredicateId() > 0) {
+            attrs = replaceQuote(query_handle->getQueryContextProto().predicates(
+              delete_op.getPredicateId()).ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kDestroyAggregationState: {
+          const DestroyAggregationStateOperator &destroy_agg_op =
+                    static_cast<const DestroyAggregationStateOperator&>(node);
+          if (query_handle->getQueryContextProto().aggregation_states_size() > 0
+                && destroy_agg_op.getAggregationId() > 0) {
+            attrs = replaceQuote(query_handle->getQueryContextProto().aggregation_states(
+              destroy_agg_op.getAggregationId()).aggregation_state().ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kFinalizeAggregation: {
+          const FinalizeAggregationOperator &finalize_aggregation_op =
+                    static_cast<const FinalizeAggregationOperator&>(node);
+          if (query_handle->getQueryContextProto().aggregation_states_size() > 0
+                && finalize_aggregation_op.getAggregationId() > 0) {
+            attrs = replaceQuote(query_handle->getQueryContextProto().aggregation_states(
+                finalize_aggregation_op.getAggregationId()).aggregation_state().ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kInitializeAggregation: {
+          const InitializeAggregationOperator &initialize_aggregation_op =
+                    static_cast<const InitializeAggregationOperator&>(node);
+          if (query_handle->getQueryContextProto().aggregation_states_size() > 0
+                && initialize_aggregation_op.getAggregationId() > 0) {
+            attrs = replaceQuote(query_handle->getQueryContextProto().aggregation_states(
+                initialize_aggregation_op.getAggregationId()).aggregation_state().ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kNestedLoopsJoin: {
+          const NestedLoopsJoinOperator &nlj_op =
+              static_cast<const NestedLoopsJoinOperator&>(node);
+          if (query_handle->getQueryContextProto().predicates_size() > 0
+                && nlj_op.getPredicateId() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().predicates(
+              nlj_op.getPredicateId()).ShortDebugString());
+          }
+          if (query_handle->getQueryContextProto().scalar_groups_size() > 0
+                && nlj_op.getSelectionId() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().scalar_groups(
+              nlj_op.getSelectionId()).ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kSelect: {
+          const SelectOperator &select_op =
+              static_cast<const SelectOperator&>(node);
+          if (query_handle->getQueryContextProto().predicates_size() > 0
+                && select_op.getPredicateId() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().predicates(
+              select_op.getPredicateId()).ShortDebugString());
+          }
+          if (query_handle->getQueryContextProto().scalar_groups_size() > 0
+                && select_op.getSelectionId() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().scalar_groups(
+              select_op.getSelectionId()).ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kSortMergeRun: {
+          const SortMergeRunOperator &sort_op =
+              static_cast<const SortMergeRunOperator&>(node);
+          if (query_handle->getQueryContextProto().sort_configs_size() > 0
+                && sort_op.getSortConfig() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().sort_configs(
+                sort_op.getSortConfig()).ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kSortRunGeneration: {
+          const SortRunGenerationOperator &sort_run_op =
+              static_cast<const SortRunGenerationOperator&>(node);
+          if (query_handle->getQueryContextProto().sort_configs_size() > 0
+                && sort_run_op.getSortConfig() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().sort_configs(
+                sort_run_op.getSortConfig()).ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kUpdate: {
+          const UpdateOperator &update_op =
+              static_cast<const UpdateOperator&>(node);
+          if (query_handle->getQueryContextProto().predicates_size() > 0
+                && update_op.getPredicateId() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().predicates(
+              update_op.getPredicateId()).ShortDebugString());
+          }
+          if (query_handle->getQueryContextProto().update_groups_size() > 0
+                && update_op.getUpdateId() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().update_groups(
+              update_op.getUpdateId()).ShortDebugString());
+          }
+          break;
+        }
+        case RelationalOperator::kWindowAggregation: {
+          const WindowAggregationOperator &aggregation_op =
+                    static_cast<const WindowAggregationOperator&>(node);
+          if (query_handle->getQueryContextProto().window_aggregation_states_size() > 0
+                && aggregation_op.getAggregationId() > 0) {
+            attrs += replaceQuote(query_handle->getQueryContextProto().window_aggregation_states(
+                aggregation_op.getAggregationId()).ShortDebugString());
+          }
+          break;
+        }
+        default:
+          break;
+      }
+
+      txt << ", \"attribute proto\": \""
+          << replaceQuote(attrs)
+          << "\"";
+
+      attrs = "";
+      switch (node_type) {
+        case RelationalOperator::kSelect: {
+          const SelectOperator &select_op =
+              static_cast<const SelectOperator&>(node);
+          attrs = select_op.getSelectAttributes();
+          break;
+        }
+        case RelationalOperator::kBuildAggregationExistenceMap: {
+          const BuildAggregationExistenceMapOperator &build_agg_op =
+              static_cast<const BuildAggregationExistenceMapOperator&>(node);
+          const CatalogRelationSchema *input_relation =
+            &build_agg_op.input_relation();
+          attrs = "{\"relation\": " + std::to_string(input_relation->getID()) + \
+            ", \"attribute\": " + std::to_string(build_agg_op.getAttribute()) + "}";
+          break;
+        }
+        case RelationalOperator::kCreateIndex: {
+          const CreateIndexOperator &create_index_op =
+              static_cast<const CreateIndexOperator&>(node);
+          attrs = create_index_op.getAttribute();
           break;
         }
         case RelationalOperator::kInnerJoin:
@@ -310,106 +481,47 @@ void PolicyEnforcerSingleNode::onQueryCompletion(QueryManagerBase *query_manager
         case RelationalOperator::kLeftSemiJoin: {
           const HashJoinOperator &hash_join_op =
               static_cast<const HashJoinOperator&>(node);
-          input_relation = &hash_join_op.probe_relation();
-          input_relation_info = "probe_side";
+          attrs = hash_join_op.getAttribute();
           break;
         }
-        case RelationalOperator::kNestedLoopsJoin: {
-          const NestedLoopsJoinOperator &nlj_op =
-              static_cast<const NestedLoopsJoinOperator&>(node);
-
-          const CatalogRelation &left_input_relation = nlj_op.left_input_relation();
-          const CatalogRelation &right_input_relation = nlj_op.right_input_relation();
-
-          if (!left_input_relation.isTemporary()) {
-            txt << "{\"input_relation\": \""
-                << left_input_relation.getName()
-                << "\", \"input_relation_id\": "
-                << left_input_relation.getID()
-                << ", \"type\": "
-                << "\"left\""
-                << ", \"proto\": \""
-                << replaceQuote(left_input_relation.getProto().ShortDebugString())
-                << "\"}";
-            if (!right_input_relation.isTemporary()) {
-              txt << ", ";
-            }
-          }
-
-          if (!right_input_relation.isTemporary()) {
-            txt << "{\"input_relation\": \""
-                << right_input_relation.getName()
-                << "\", \"input_relation_id\": "
-                << right_input_relation.getID()
-                << ", \"type\": "
-                << "\"right\""
-                << ", \"proto\": \""
-                << replaceQuote(right_input_relation.getProto().ShortDebugString())
-                << "\"}";
-          }
+        case RelationalOperator::kInsert: {
+          const InsertOperator &insert_op =
+                    static_cast<const InsertOperator&>(node);
+          attrs = insert_op.getAttribute();
           break;
         }
-        case RelationalOperator::kSelect: {
-          const SelectOperator &select_op =
-              static_cast<const SelectOperator&>(node);
-          input_relation = &select_op.input_relation();
-          input_relation_info = "input";
+        case RelationalOperator::kSample: {
+          const SampleOperator &sample_op =
+                    static_cast<const SampleOperator&>(node);
+          attrs = sample_op.getAttribute();
           break;
         }
-        case RelationalOperator::kSortRunGeneration: {
-          const SortRunGenerationOperator &sort_op =
-              static_cast<const SortRunGenerationOperator&>(node);
-          input_relation = &sort_op.input_relation();
-          input_relation_info = "input";
+        case RelationalOperator::kTableExport: {
+          const TableExportOperator &table_export_op =
+              static_cast<const TableExportOperator&>(node);
+          attrs = table_export_op.getAttribute();
+          break;
+        }
+        case RelationalOperator::kTableGenerator: {
+          const TableGeneratorOperator &table_generator_op =
+              static_cast<const TableGeneratorOperator&>(node);
+          attrs = table_generator_op.getAttribute();
           break;
         }
         case RelationalOperator::kUnionAll: {
-          const UnionAllOperator &union_all_op = static_cast<const UnionAllOperator&>(node);
-
-          std::string input_stored_relation_names;
-          std::size_t num_input_stored_relations = 0;
-          bool first = true;
-          for (const auto &ir : union_all_op.input_relations()) {
-            if (ir->isTemporary()) {
-              continue;
-            }
-
-            if (first) {
-              first = false;
-            } else {
-              txt << ", ";
-            }
-
-            txt << "{input_relation\": \""
-                << ir->getName()
-                << "\", \"input_relation_id\": "
-                << ir->getID()
-                << ", \"type\": \""
-                << num_input_stored_relations
-                << "\", \"proto\": \""
-                << replaceQuote(ir->getProto().ShortDebugString())
-                << "\"}";
-
-            ++num_input_stored_relations;
-          }
+          const UnionAllOperator &union_all_op =
+            static_cast<const UnionAllOperator&>(node);
+          attrs = union_all_op.getAttribute();
           break;
         }
         default:
           break;
       }
 
-      if (input_relation != nullptr && !input_relation->isTemporary()) {
-        txt << "{\"input_relation\": \""
-            << input_relation->getName()
-            << "\", \"input_relation_id\": "
-            << input_relation->getID()
-            << ", \"type\": \""
-            << input_relation_info
-            << "\", \"proto\": \""
-            << replaceQuote(input_relation->getProto().ShortDebugString())
-            << "\"}";
-      }
-      txt << "]";*/
+      txt << ", \"attribute list\": ["
+          << attrs
+          << "]";
+
 
       txt << "}\n";
     }

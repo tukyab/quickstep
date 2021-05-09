@@ -134,6 +134,18 @@ class UpdateOperator : public RelationalOperator {
     return relation_.getID();
   }
 
+  const CatalogRelation& input_relation() const {
+    return relation_;
+  }
+
+  QueryContext::predicate_id getPredicateId() const {
+    return predicate_index_;
+  }
+
+  QueryContext::update_group_id getUpdateId() const {
+    return update_group_index_;
+  }
+
  private:
   const CatalogRelation &relation_;
   const QueryContext::insert_destination_id relocation_destination_index_;

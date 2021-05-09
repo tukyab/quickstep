@@ -246,6 +246,22 @@ class HashJoinOperator : public RelationalOperator {
     }
   }
 
+  std::string getAttribute() const {
+    bool first = true;
+    std::string attrs = "";
+    for (attribute_id i : join_key_attributes_) {
+      if (first) {
+        first = false;
+      } else {
+        attrs += ", ";
+      }
+      attrs += "{\"relation\":" + std::to_string(probe_relation_.getID()) + \
+        ", \"attribute\": " + \
+        std::to_string(i) + "}";
+    }
+    return attrs;
+  }
+
  private:
   template <class JoinWorkOrderClass>
   bool getAllNonOuterJoinWorkOrders(WorkOrdersContainer *container,

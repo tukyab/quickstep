@@ -134,6 +134,24 @@ class TableExportOperator : public RelationalOperator {
 
   void receiveFeedbackMessage(const WorkOrder::FeedbackMessage &msg) override;
 
+  std::string getAttribute() const {
+    bool first = true;
+    std::string attrs = "";
+    for (CatalogRelationSchema::const_iterator it = input_relation_.begin();
+         it != input_relation_.end();
+         ++it) {
+       if (first) {
+         first = false;
+       } else {
+         attrs += ", ";
+       }
+      attrs += "{\"relation\":" + std::to_string(input_relation_.getID()) + \
+        ", \"attribute\": " + \
+        std::to_string(it->getID()) + "}";
+    }
+    return attrs;
+  }
+
  private:
   // Buffer for storing a block's exported string.
   struct BlockBuffer {

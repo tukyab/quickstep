@@ -152,6 +152,10 @@ class BuildHashOperator : public RelationalOperator {
     }
   }
 
+  QueryContext::predicate_id getPredicateId() const {
+    return build_predicate_index_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.
