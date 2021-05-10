@@ -57,7 +57,7 @@ attributes = set()
 for data_size in [2, 5, 10, 20, 50, 80, 100]:
     for q in range(len(queries)):
         for c in cores:
-            with open("/ssd1/tenzin/json_" + str(data_size) + "g/q" + queries[q] + "_c" + str(c) + ".json", "r") as f:
+            with open("/flash2/tenzin/json_" + str(data_size) + "g/q" + queries[q] + "_c" + str(c) + ".json", "r") as f:
                 lines = f.readlines()
             for line in lines:
                 l = fix_esc(line);
@@ -84,7 +84,7 @@ for data_size in [2, 5, 10, 20, 50, 80, 100]:
         input_relation = []
         block = []
         attribute = []
-        with open("/ssd1/tenzin/json_" + str(data_size) + "g/q" + queries[q] + "_c2.json", "r") as f:
+        with open("/flash2/tenzin/json_" + str(data_size) + "g/q" + queries[q] + "_c2.json", "r") as f:
             lines = f.readlines()
 
         adj_dict = {}
@@ -148,7 +148,7 @@ for data_size in [2, 5, 10, 20, 50, 80, 100]:
             task_mem_dict[op] = {'fresh_durations': {}, 'rest_wave': {}, 'first_wave': {}}
 
         for c in cores:
-            with open("/ssd1/tenzin/json_" + str(data_size) + "g/q" + queries[q] + "_c" + str(c) + ".json", "r") as f:
+            with open("/flash2/tenzin/json_" + str(data_size) + "g/q" + queries[q] + "_c" + str(c) + ".json", "r") as f:
                 lines = f.readlines()
 
             query_1 = [[] for _ in range(num_operators)]
@@ -179,12 +179,12 @@ for data_size in [2, 5, 10, 20, 50, 80, 100]:
                 task_mem_dict[op]['rest_wave'][c] = query_2_mem[op]
                 task_mem_dict[op]['first_wave'][c] = []
 
-        np.save("/ssd1/tenzin/" + str(data_size) + "g/adj_mat_" + str(q+1) + ".npy", np.array(adj_mat))
-        np.save("/ssd1/tenzin/" + str(data_size) + "g/task_duration_" + str(q+1) + ".npy", task_dur_dict)
-        np.save("/ssd1/tenzin/" + str(data_size) + "g/task_memory_" + str(q+1) + ".npy", task_mem_dict)
-        np.save("/ssd1/tenzin/" + str(data_size) + "g/edges_" + str(q+1) + ".npy", np.array(edge_mat))
-        np.save("/ssd1/tenzin/" + str(data_size) + "g/operator_" + str(q+1) + ".npy", np.array(operator))
+        np.save("/flash2/tenzin/" + str(data_size) + "g/adj_mat_" + str(q+1) + ".npy", np.array(adj_mat))
+        np.save("/flash2/tenzin/" + str(data_size) + "g/task_duration_" + str(q+1) + ".npy", task_dur_dict)
+        np.save("/flash2/tenzin/" + str(data_size) + "g/task_memory_" + str(q+1) + ".npy", task_mem_dict)
+        np.save("/flash2/tenzin/" + str(data_size) + "g/edges_" + str(q+1) + ".npy", np.array(edge_mat))
+        np.save("/flash2/tenzin/" + str(data_size) + "g/operator_" + str(q+1) + ".npy", np.array(operator))
 
-        np.save("/ssd1/tenzin/" + str(data_size) + "g/input_relation_" + str(q+1) + ".npy", np.array(input_relation))
-        np.save("/ssd1/tenzin/" + str(data_size) + "g/block_" + str(q+1) + ".npy", np.array(block))
-        np.save("/ssd1/tenzin/" + str(data_size) + "g/attribute_" + str(q+1) + ".npy", np.array(attribute))
+        np.save("/flash2/tenzin/" + str(data_size) + "g/input_relation_" + str(q+1) + ".npy", np.array(input_relation))
+        np.save("/flash2/tenzin/" + str(data_size) + "g/block_" + str(q+1) + ".npy", np.array(block))
+        np.save("/flash2/tenzin/" + str(data_size) + "g/attribute_" + str(q+1) + ".npy", np.array(attribute))
