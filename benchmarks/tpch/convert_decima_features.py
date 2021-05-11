@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import re
 
 def fix_esc(line):
     l = line.replace("\\2", "\\\\ 2")
